@@ -1,0 +1,18 @@
+{
+  "workspace": {
+    "path": "${workspaceFolder}\\library\\GD32F30x_Firmware_Library_V2.1.0\\Examples\\USBD\\audio_headphone\\EWARM\\audio.eww"
+  },
+  "workspaces": {
+    "${workspaceFolder}\\library\\GD32F30x_Firmware_Library_V2.1.0\\Examples\\USBD\\audio_headphone\\EWARM\\audio.eww": {
+      "configs": {
+        "${workspaceFolder}\\library\\GD32F30x_Firmware_Library_V2.1.0\\Examples\\USBD\\audio_headphone\\EWARM\\audio.ewp": "USBD"
+      },
+      "selected": {
+        "path": "${workspaceFolder}\\library\\GD32F30x_Firmware_Library_V2.1.0\\Examples\\USBD\\audio_headphone\\EWARM\\audio.ewp"
+      }
+    }
+  },
+  "workbench": {
+    "path": "C:\\Program Files (x86)\\IAR Systems\\Embedded Workbench 8.2"
+  }
+}

@@ -1,0 +1,42 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CMSIS-DAP Debug",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/Debug/Exe/gd32f303.out",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "external",
+            "gdbTarget": "localhost:3333",
+            "gdbPath": "arm-none-eabi-gdb",
+            "device": "GD32F303xC",
+            "interface": "swd",
+            "runToEntryPoint": "main",
+            "runToMain": true,
+            "serverpath": "C:/Program Files (x86)/IAR Systems/Embedded Workbench 8.2/common/bin/CSpyBat.exe",
+            "serverArgs": [
+                "--device",
+                "GD32F303xC",
+                "--endian",
+                "little",
+                "--cpu",
+                "Cortex-M4",
+                "--fpu",
+                "VFPv4_SP",
+                "--semihosting",
+                "-f",
+                "${workspaceRoot}/settings/gd32f303.Debug.general.xcl",
+                "--backend",
+                "-f",
+                "${workspaceRoot}/settings/gd32f303.Debug.driver.xcl",
+                "--debug_file",
+                "${workspaceRoot}/Debug/Exe/gd32f303.out",
+                "--gdbserv",
+                "--port=3333"
+            ],
+            "showDevDebugOutput": true,
+            "preLaunchTask": "Build IAR Project"
+        }
+    ]
+}
