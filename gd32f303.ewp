@@ -362,6 +362,7 @@
                     <state>$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4</state>
                     <state>$PROJ_DIR$</state>
                     <state>$PROJ_DIR$\os\rt-thread</state>
+                    <state>$PROJ_DIR$\dlib</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2093,6 +2094,9 @@
             <name>$PROJ_DIR$\bsp\board.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\bsp\device_info.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\bsp\drv_serial.c</name>
         </file>
     </group>
@@ -2104,6 +2108,9 @@
     </group>
     <group>
         <name>dlib</name>
+        <file>
+            <name>$PROJ_DIR$\dlib\dlib.c</name>
+        </file>
     </group>
     <group>
         <name>library</name>

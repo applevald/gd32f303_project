@@ -2375,6 +2375,9 @@
             <name>$PROJ_DIR$\bsp\board.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\bsp\device_info.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\bsp\drv_serial.c</name>
         </file>
     </group>
@@ -2386,6 +2389,9 @@
     </group>
     <group>
         <name>dlib</name>
+        <file>
+            <name>$PROJ_DIR$\dlib\dlib.c</name>
+        </file>
     </group>
     <group>
         <name>library</name>
