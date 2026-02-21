@@ -1,0 +1,93 @@
+# IAR Embedded Workbench project files
+*.ewp
+*.ewd
+*.ewt
+*.dep
+*.eww
+*.xcl
+*.cspy.bat
+*.cspy.ps1
+
+# Build output directories
+Debug/
+output/
+*.out
+*.bin
+*.hex
+*.elf
+*.map
+*.lst
+*.sim
+
+# Object files and intermediates
+*.o
+*.obj
+*.pbi
+*.pbd
+*.pbw
+*.pbd.linf
+*.pbd.browse
+
+# Dependency files
+*.d
+
+# IDE settings
+.vscode/
+*.code-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# User-specific files
+*~
+*.orig
+*.rej
+
+# Binary and executable files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Library files
+*.a
+*.lib
+
+# Backup files
+*.bak
+*.backup
+
+# Temporary files
+*.tmp
+*.temp
+
+# IAR Debug configuration files
+settings/gd32f303.*
+settings/*.crun
+settings/*.dbgdt
+settings/*.dnx
+settings/*.reggroups
+
+# Compiler specific
+*.i
+*.s
+*.su
+
+# Coverage files
+*.gcda
+*.gcno
+
+# Profiling data
+*.gmon
+
+# CMake build files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# OpenOCD configuration
+# Keep openocd_gd32f303.cfg as it's project specific
