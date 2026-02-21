@@ -2438,6 +2438,7 @@ RTM_EXPORT(rt_mb_control);
 struct rt_mq_message
 {
     struct rt_mq_message *next;
+    uint32_t length;
 };
 
 
@@ -2860,6 +2861,9 @@ rt_err_t rt_mq_send_wait(rt_mq_t     mq,
 
     /* the msg is the new tailer of list, the next shall be NULL */
     msg->next = RT_NULL;
+
+    /* add the length */
+    ((struct rt_mq_message *)msg)->length = size;
     /* copy buffer */
     rt_memcpy(msg + 1, buffer, size);
 
@@ -2993,6 +2997,8 @@ rt_err_t rt_mq_urgent(rt_mq_t mq, const void *buffer, rt_size_t size)
     /* enable interrupt */
     rt_hw_interrupt_enable(level);
 
+    /* add the length */
+    ((struct rt_mq_message *)msg)->length = size;
     /* copy buffer */
     rt_memcpy(msg + 1, buffer, size);
 
@@ -3043,7 +3049,7 @@ RTM_EXPORT(rt_mq_urgent);
  * @brief    This function will receive a message from message queue object,
  *           if there is no message in messagequeue object, the thread shall wait for a specified time.
  *
- * @note     Only when there is mail in the mailbox, the receiving thread can get the mail immediately and return RT_EOK,
+ * @note     Only when there is mail in the mailbox, the receiving thread can get the mail immediately and return the message size,
  *           otherwise the receiving thread will be suspended until timeout.
  *           If the mail is not received within the specified time, it will return -RT_ETIMEOUT.
  *
@@ -3062,8 +3068,11 @@ RTM_EXPORT(rt_mq_urgent);
  *           If use macro RT_WAITING_NO to set this parameter, which means that this
  *           function is non-blocking and will return immediately.
  *
- * @return   Return the operation status. When the return value is RT_EOK, the operation is successful.
- *           If the return value is any other values, it means that the mailbox release failed.
+ * @return   Returns the actual size of the message received when successful (> 0).
+ *           Returns error code (0 or negative) when failed:
+ *           -RT_ETIMEOUT: Message not received within timeout
+ *           -RT_EINVAL: Invalid parameters
+ *           -RT_ERROR: Other errors
  */
 rt_err_t rt_mq_recv(rt_mq_t    mq,
                     void      *buffer,
@@ -3183,8 +3192,11 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
     /* enable interrupt */
     rt_hw_interrupt_enable(level);
 
+    /* save actual received message size */
+    rt_size_t received_size = ((struct rt_mq_message *)msg)->length;
+
     /* copy message */
-    rt_memcpy(buffer, msg + 1, size > mq->msg_size ? mq->msg_size : size);
+    rt_memcpy(buffer, msg + 1, received_size > mq->msg_size ? mq->msg_size : received_size);
 
     /* disable interrupt */
     level = rt_hw_interrupt_disable();
@@ -3204,7 +3216,7 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 
         rt_schedule();
 
-        return RT_EOK;
+        return received_size;
     }
 
     /* enable interrupt */
@@ -3212,7 +3224,7 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 
     RT_OBJECT_HOOK_CALL(rt_object_take_hook, (&(mq->parent.parent)));
 
-    return RT_EOK;
+    return received_size;
 }
 RTM_EXPORT(rt_mq_recv);
 

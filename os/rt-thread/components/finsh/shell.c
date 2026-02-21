@@ -225,12 +225,22 @@ void finsh_set_device(const char *device_name)
     if (rt_device_open(dev, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX | \
                        RT_DEVICE_FLAG_STREAM) == RT_EOK)
     {
+        /* Success branch */
+    }
+    else
+    {
+        rt_kprintf("finsh: failed to open device %s\n", device_name);
+        return;
+    }
+    {
         if (shell->device != RT_NULL)
         {
             /* close old finsh device */
             rt_device_close(shell->device);
             rt_device_set_rx_indicate(shell->device, RT_NULL);
         }
+
+        rt_kprintf("finsh: opened device %s successfully\n", device_name);
 
         /* clear line buffer before switch to new device */
         rt_memset(shell->line, 0, sizeof(shell->line));
@@ -447,6 +457,9 @@ static void shell_push_history(struct finsh_shell *shell)
 void finsh_thread_entry(void *parameter)
 {
     int ch;
+
+    rt_kprintf("[FINSH] Shell thread running\n");
+    rt_thread_delay(RT_TICK_PER_SECOND / 2); // Wait a bit to ensure system is ready
 
     /* normal is echo mode */
 #ifndef FINSH_ECHO_DISABLE_DEFAULT
@@ -733,6 +746,8 @@ int finsh_system_init(void)
     rt_err_t result = RT_EOK;
     rt_thread_t tid;
 
+    rt_kprintf("[FINSH] finsh_system_init() called\n");
+
 #ifdef FINSH_USING_SYMTAB
 #ifdef __ARMCC_VERSION  /* ARM C Compiler */
     extern const int FSymTab$$Base;
@@ -794,7 +809,14 @@ int finsh_system_init(void)
     finsh_set_prompt_mode(1);
 
     if (tid != NULL && result == RT_EOK)
+    {
         rt_thread_startup(tid);
+        rt_kprintf("[FINSH] Thread created successfully: %s\n", FINSH_THREAD_NAME);
+    }
+    else
+    {
+        rt_kprintf("[FINSH] Failed to create thread\n");
+    }
     return 0;
 }
 INIT_APP_EXPORT(finsh_system_init);

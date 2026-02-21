@@ -56,6 +56,10 @@ struct gd32_uart
 
 int rt_hw_usart_init(void);
 
+#if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
+char rt_hw_console_getchar(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

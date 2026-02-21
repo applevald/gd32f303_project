@@ -652,3 +652,29 @@ int rt_hw_usart_init(void)
 }
 
 #endif
+
+#if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
+
+/**
+ * @brief  Get a character from console
+ * @param  None
+ * @retval Character received from console, -1 if no data
+ */
+char rt_hw_console_getchar(void)
+{
+    rt_device_t console;
+    char ch = -1;
+
+    console = rt_console_get_device();
+    if (console != RT_NULL)
+    {
+        if (rt_device_read(console, -1, &ch, 1) == 1)
+        {
+            return ch;
+        }
+    }
+
+    return -1;
+}
+
+#endif /* defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE) */

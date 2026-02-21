@@ -2374,6 +2374,9 @@
         <file>
             <name>$PROJ_DIR$\bsp\board.c</name>
         </file>
+        <file>
+            <name>$PROJ_DIR$\bsp\drv_serial.c</name>
+        </file>
     </group>
     <group>
         <name>cmsis</name>
@@ -2468,6 +2471,12 @@
     <group>
         <name>os</name>
         <group>
+            <name>core</name>
+            <file>
+                <name>$PROJ_DIR$\bsp\dev_serial.c</name>
+            </file>
+        </group>
+        <group>
             <name>kernel</name>
             <file>
                 <name>$PROJ_DIR$\os\rt-thread\src\clock.c</name>
@@ -2528,6 +2537,24 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c</name>
+            </file>
+        </group>
+        <group>
+            <name>shell</name>
+            <file>
+                <name>$PROJ_DIR$\os\rt-thread\components\finsh\cmd.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\os\rt-thread\components\finsh\msh.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\os\rt-thread\components\finsh\msh_file.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\os\rt-thread\components\finsh\msh_parse.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\os\rt-thread\components\finsh\shell.c</name>
             </file>
         </group>
     </group>

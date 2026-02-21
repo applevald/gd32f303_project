@@ -379,14 +379,22 @@ rt_inline int _serial_int_tx(struct rt_serial_device *serial, const rt_uint8_t *
         {
             if (serial->ops->putc(serial, '\r') == -1)
             {
-                rt_completion_wait(&(tx->completion), RT_WAITING_FOREVER);
+                tx->is_completed = RT_FALSE;
+                while (!tx->is_completed)
+                {
+                    rt_thread_delay(1);
+                }
                 continue;
             }
         }
 
         while (serial->ops->putc(serial, *(char*)data) == -1)
         {
-            rt_completion_wait(&(tx->completion), RT_WAITING_FOREVER);
+            tx->is_completed = RT_FALSE;
+            while (!tx->is_completed)
+            {
+                rt_thread_delay(1);
+            }
         }
 
         data ++; length --;
@@ -628,7 +636,9 @@ static rt_err_t rt_serial_init(struct rt_device *dev)
     serial->serial_rx = RT_NULL;
     serial->serial_tx = RT_NULL;
 
+#ifdef RT_USING_DEVICE_NOTIFY
     rt_memset(&serial->rx_notify, 0, sizeof(struct rt_device_notify));
+#endif
 
     /* apply configuration */
     if (serial->ops->configure)
@@ -743,7 +753,7 @@ static rt_err_t rt_serial_open(struct rt_device *dev, rt_uint16_t oflag)
             tx_fifo = (struct rt_serial_tx_fifo*) rt_malloc(sizeof(struct rt_serial_tx_fifo));
             RT_ASSERT(tx_fifo != RT_NULL);
 
-            rt_completion_init(&(tx_fifo->completion));
+            tx_fifo->is_completed = RT_TRUE;
             serial->serial_tx = tx_fifo;
 
             dev->open_flag |= RT_DEVICE_FLAG_INT_TX;
@@ -884,7 +894,7 @@ static rt_err_t rt_serial_close(struct rt_device *dev)
     return RT_EOK;
 }
 
-static rt_ssize_t rt_serial_read(struct rt_device *dev,
+static rt_size_t rt_serial_read(struct rt_device *dev,
                                 rt_off_t          pos,
                                 void             *buffer,
                                 rt_size_t         size)
@@ -910,7 +920,7 @@ static rt_ssize_t rt_serial_read(struct rt_device *dev,
     return _serial_poll_rx(serial, (rt_uint8_t *)buffer, size);
 }
 
-static rt_ssize_t rt_serial_write(struct rt_device *dev,
+static rt_size_t rt_serial_write(struct rt_device *dev,
                                  rt_off_t          pos,
                                  const void       *buffer,
                                  rt_size_t         size)
@@ -1104,19 +1114,25 @@ static rt_err_t rt_serial_control(struct rt_device *dev,
                 }
             }
             break;
+#ifdef RT_USING_DEVICE_NOTIFY
         case RT_DEVICE_CTRL_NOTIFY_SET:
             if (args)
             {
+#ifdef RT_USING_DEVICE_NOTIFY
                 rt_memcpy(&serial->rx_notify, args, sizeof(struct rt_device_notify));
+#endif
             }
             break;
+#endif
 
+#ifdef RT_USING_SERIAL_CONSOLE
         case RT_DEVICE_CTRL_CONSOLE_OFLAG:
             if (args)
             {
                 *(rt_uint16_t*)args = RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX | RT_DEVICE_FLAG_STREAM;
             }
             break;
+#endif
 #ifdef RT_USING_POSIX_STDIO
 #if defined(RT_USING_POSIX_TERMIOS)
         case TCGETA:
@@ -1501,7 +1517,7 @@ void rt_hw_serial_isr(struct rt_serial_device *serial, int event)
             struct rt_serial_tx_fifo* tx_fifo;
 
             tx_fifo = (struct rt_serial_tx_fifo*)serial->serial_tx;
-            rt_completion_done(&(tx_fifo->completion));
+            tx_fifo->is_completed = RT_TRUE;
             break;
         }
 #ifdef RT_SERIAL_USING_DMA

@@ -41,7 +41,7 @@
 #define RT_USING_SEMAPHORE
 #define RT_USING_MUTEX
 #define RT_USING_EVENT
-#define RT_USING_MAILBOX
+// #define RT_USING_MAILBOX
 #define RT_USING_MESSAGEQUEUE
 /* end of Inter-Thread communication */
 
@@ -54,11 +54,12 @@
 #define RT_USING_HEAP
 /* end of Memory Management */
 
+#define RT_DEBUG
 /* Kernel Device Object */
 
 #define RT_USING_DEVICE
 #define RT_USING_CONSOLE
-#define RT_CONSOLEBUF_SIZE 128
+#define RT_CONSOLEBUF_SIZE 256
 #define RT_CONSOLE_DEVICE_NAME "uart0"
 /* end of Kernel Device Object */
 

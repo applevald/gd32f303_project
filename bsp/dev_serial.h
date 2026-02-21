@@ -248,7 +248,8 @@ struct rt_serial_rx_fifo
 
 struct rt_serial_tx_fifo
 {
-    struct rt_completion completion;
+    /* struct rt_completion completion; */  /* Not available in RT-Thread Nano */
+    rt_bool_t is_completed;
 };
 
 /*
@@ -262,7 +263,8 @@ struct rt_serial_rx_dma
 struct rt_serial_tx_dma
 {
     rt_bool_t activated;
-    struct rt_data_queue data_queue;
+    /* struct rt_data_queue data_queue; */  /* Not used in this project */
+    void* queue;  /* Placeholder if needed */
 };
 
 struct rt_serial_device
@@ -275,13 +277,13 @@ struct rt_serial_device
     void *serial_rx;
     void *serial_tx;
 
-    struct rt_spinlock spinlock;
+    /* struct rt_spinlock spinlock; */  /* Not used in RT-Thread Nano */
 #ifdef RT_USING_SERIAL_BYPASS
     struct rt_serial_bypass* bypass;
 #else
     void* bypass;
 #endif
-    struct rt_device_notify rx_notify;
+    /* struct rt_device_notify rx_notify; */  /* Not used in RT-Thread Nano */
 };
 typedef struct rt_serial_device rt_serial_t;
 
