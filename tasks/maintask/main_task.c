@@ -112,7 +112,11 @@ static void main_task_reset_system(rt_base_t event, rt_uint8_t *msg, rt_base_t m
     // reset_system();
 
 }
+#ifndef RT_USING_USER_MAIN
 INIT_TASK_EXPORT(main_task_init);
+#else
+INIT_APP_EXPORT(main_task_init);
+#endif
 
 void add_job_to_main_task(_job *new_job)
 {

@@ -64,10 +64,10 @@
 
 /* RT-Thread Components */
 
-//#define RT_USING_COMPONENTS_INIT
-//#define RT_USING_USER_MAIN
-//#define RT_MAIN_THREAD_STACK_SIZE 2048
-//#define RT_MAIN_THREAD_PRIORITY 10
+#define RT_USING_COMPONENTS_INIT
+#define RT_USING_USER_MAIN
+#define RT_MAIN_THREAD_STACK_SIZE 2048
+#define RT_MAIN_THREAD_PRIORITY 10
 /* end of RT-Thread Components */
 
 /* C++ features */

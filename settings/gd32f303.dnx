@@ -42,23 +42,23 @@
         <MultiCoreRunAll>1</MultiCoreRunAll>
     </Simulator>
     <Jet>
+        <JetConnSerialNo>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A</JetConnSerialNo>
+        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A:#PW_WINUSB_CMSIS-DAP:0:</JetConnFoundProbes>
+        <PrevWtdReset>Software</PrevWtdReset>
         <DisableInterrupts>0</DisableInterrupts>
         <LeaveRunning>0</LeaveRunning>
         <MultiCoreRunAll>0</MultiCoreRunAll>
         <OnlineReset>Software</OnlineReset>
-        <JetConnSerialNo>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A</JetConnSerialNo>
-        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A:#PW_WINUSB_CMSIS-DAP:0:</JetConnFoundProbes>
-        <PrevWtdReset>Software</PrevWtdReset>
     </Jet>
     <PlDriver>
-        <MemConfigValue>C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\CONFIG\debugger\GD\GD32F303xC.ddf</MemConfigValue>
         <FirstRun>0</FirstRun>
+        <MemConfigValue>C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\CONFIG\debugger\GD\GD32F303xC.ddf</MemConfigValue>
     </PlDriver>
     <ArmDriver>
         <EnableCache>1</EnableCache>
     </ArmDriver>
     <DebugChecksum>
-        <Checksum>3986740102</Checksum>
+        <Checksum>1085105267</Checksum>
     </DebugChecksum>
     <Exceptions>
         <StopOnUncaught>_ 0</StopOnUncaught>
@@ -117,11 +117,15 @@
         <mode>0</mode>
     </DisassembleMode>
     <Breakpoints2>
-        <Bp0>_ 1 "EMUL_CODE" "{$PROJ_DIR$\mainapp\main.c}.45.5" 0 0 1 "" 0 "" 0</Bp0>
-        <Bp1>_ 1 "EMUL_CODE" "{$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c}.385.5" 0 0 1 "" 0 "" 0</Bp1>
-        <Bp2>_ 1 "EMUL_CODE" "{$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4\context_iar.S}.198.1" 0 0 1 "" 0 "" 0</Bp2>
+        <Bp0>_ 1 "EMUL_CODE" "{$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c}.385.5" 0 0 1 "" 0 "" 0</Bp0>
+        <Bp1>_ 1 "EMUL_CODE" "{$PROJ_DIR$\mainapp\main.c}.15.13" 0 0 1 "" 0 "" 0</Bp1>
+        <Bp2>_ 1 "EMUL_CODE" "{$PROJ_DIR$\bsp\board.c}.199.5" 0 0 1 "" 0 "" 0</Bp2>
         <Count>3</Count>
     </Breakpoints2>
+    <TermIOLog>
+        <LoggingEnabled>_ 0</LoggingEnabled>
+        <LogFile>_ ""</LogFile>
+    </TermIOLog>
     <LogFile>
         <LoggingEnabled>_ 0</LoggingEnabled>
         <LogFile>_ ""</LogFile>
@@ -131,8 +135,4 @@
         <Count>0</Count>
         <SuppressDialog>0</SuppressDialog>
     </Aliases>
-    <TermIOLog>
-        <LoggingEnabled>_ 0</LoggingEnabled>
-        <LogFile>_ ""</LogFile>
-    </TermIOLog>
 </settings>

@@ -15,54 +15,8 @@
 #include <rthw.h>
 #include <rtthread.h>
 
-#ifdef RT_USING_SERIAL
-static struct rt_serial_device serial0;
-/* static rt_uint8_t serial_rx_buffer[64]; */
-
-/* UART operations */
-static rt_err_t uart_configure(struct rt_serial_device *serial, struct serial_configure *cfg)
-{
-    return RT_EOK;
-}
-
-static rt_err_t uart_control(struct rt_serial_device *serial, int cmd, void *arg)
-{
-    return RT_EOK;
-}
-
-static int uart_putc(struct rt_serial_device *serial, char c)
-{
-    if (c == '\n')
-    {
-        usart_data_transmit(USART0, '\r');
-        while (RESET == usart_flag_get(USART0, USART_FLAG_TBE));
-    }
-    usart_data_transmit(USART0, c);
-    while (RESET == usart_flag_get(USART0, USART_FLAG_TBE));
-    return 1;
-}
-
-static int uart_getc(struct rt_serial_device *serial)
-{
-    if (RESET == usart_flag_get(USART0, USART_FLAG_RBNE))
-        return -1;
-    return (int)usart_data_receive(USART0);
-}
-
-static rt_size_t uart_dma_transmit(struct rt_serial_device *serial, rt_uint8_t *buf, rt_size_t size, int direction)
-{
-    return 0;
-}
-
-const struct rt_uart_ops rt_uart_ops = 
-{
-    uart_configure,
-    uart_control,
-    uart_putc,
-    uart_getc,
-    uart_dma_transmit
-};
-#endif
+/* Note: UART serial device initialization has been moved to drv_serial.c */
+/* This file only contains board-level initialization and console output */
 
 /* systick configuration */
 static void systick_configuration(void)
@@ -204,38 +158,16 @@ void rt_hw_board_init(void)
 }
 
 #ifdef RT_USING_SERIAL
-/**
- * UART initialization function
- */
+/* UART initialization function - now implemented in drv_serial.c */
+/* This is a stub to maintain compatibility */
 rt_err_t rt_hw_uart_init(void)
 {
-    rt_err_t result = RT_EOK;
-
-#ifdef BSP_USING_UART0
-    serial0.ops = &rt_uart_ops;
-    serial0.config.baud_rate = BAUD_RATE_115200;
-    serial0.config.data_bits = DATA_BITS_8;
-    serial0.config.stop_bits = STOP_BITS_1;
-    serial0.config.parity = PARITY_NONE;
-    
-    result = rt_hw_serial_register(&serial0, "uart0",
-                                   RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX,
-                                   NULL);
-    RT_ASSERT(result == RT_EOK);
-#endif
-
-    return result;
+    /* Call the actual implementation from drv_serial.c */
+    extern int rt_hw_usart_init(void);
+    return rt_hw_usart_init();
 }
 #endif
 
-/* Implement rt_hw_serial_register - simple wrapper around rt_device_register */
-rt_err_t rt_hw_serial_register(struct rt_serial_device *serial,
-                               const char *name,
-                               rt_uint32_t flag,
-                               void *data)
-{
-    return rt_device_register((rt_device_t)serial, name, flag);
-}
 
 #ifdef RT_USING_CONSOLE
 /* retarget the C library printf function to the USART */

@@ -7,10 +7,11 @@
 #define SECTION(x)           __attribute__((used,__section__(x)))
 
 
-typedef int (*init_fn_t)(void);
+#ifndef USER_APP_INIT_FUC
+#define USER_APP_INIT_FUC
+typedef int (*init_fn_s)(void);
 #define INIT_EXPORT_S(fn, level)  \
-		__root const init_fn_t __mp_init_##fn SECTION(".mp_fn."level) = fn
-
+		__root const init_fn_s __mp_init_##fn SECTION(".mp_fn."level) = fn
 
 #define INIT_DRIVER_EXPORT(fn)                INIT_EXPORT_S(fn, "1")
 #define INIT_SYSTEM_EXPORT(fn)               INIT_EXPORT_S(fn, "2")
@@ -22,5 +23,6 @@ void system_init(void);
 void task_init(void);
 void module_init(void);
 
+#endif
 
 #endif
