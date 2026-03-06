@@ -42,23 +42,24 @@
         <MultiCoreRunAll>1</MultiCoreRunAll>
     </Simulator>
     <Jet>
-        <JetConnSerialNo>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A</JetConnSerialNo>
-        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:5679884D260F2CA92E5CC99E6420DE6A:#PW_WINUSB_CMSIS-DAP:0:</JetConnFoundProbes>
         <PrevWtdReset>Software</PrevWtdReset>
         <OnlineReset>Software</OnlineReset>
+        <JetConnSerialNo>#PW_HID_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106</JetConnSerialNo>
+        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:#PW_WINUSB_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:</JetConnFoundProbes>
         <DisableInterrupts>0</DisableInterrupts>
         <LeaveRunning>0</LeaveRunning>
         <MultiCoreRunAll>0</MultiCoreRunAll>
     </Jet>
     <PlDriver>
         <FirstRun>0</FirstRun>
-        <MemConfigValue>C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\CONFIG\debugger\GD\GD32F303xC.ddf</MemConfigValue>
+        <MemConfigValue>C:\Program Files\IAR Systems\Embedded Workbench 9.2\arm\config\debugger\GD\GD32F303xC.ddf</MemConfigValue>
     </PlDriver>
     <ArmDriver>
+        <EnforceMemoryConfiguration>1</EnforceMemoryConfiguration>
         <EnableCache>1</EnableCache>
     </ArmDriver>
     <DebugChecksum>
-        <Checksum>2009477746</Checksum>
+        <Checksum>1959670446</Checksum>
     </DebugChecksum>
     <Exceptions>
         <StopOnUncaught>_ 0</StopOnUncaught>
@@ -73,8 +74,8 @@
     <SWOManager>
         <SamplingDivider>8192</SamplingDivider>
         <OverrideClock>0</OverrideClock>
-        <CpuClock>1</CpuClock>
-        <SwoClock>1</SwoClock>
+        <CpuClock>1953721961</CpuClock>
+        <SwoClock>1376416626</SwoClock>
         <DataLogMode>0</DataLogMode>
         <ItmPortsEnabled>63</ItmPortsEnabled>
         <ItmTermIOPorts>1</ItmTermIOPorts>
@@ -83,6 +84,11 @@
         <PowerForcePC>1</PowerForcePC>
         <PowerConnectPC>1</PowerConnectPC>
     </SWOManager>
+    <LogFile>
+        <LoggingEnabled>_ 0</LoggingEnabled>
+        <LogFile>_ ""</LogFile>
+        <Category>_ 0</Category>
+    </LogFile>
     <Trace1>
         <Enabled>0</Enabled>
         <ShowSource>1</ShowSource>
@@ -117,19 +123,13 @@
         <LoggingEnabled>_ 0</LoggingEnabled>
         <LogFile>_ ""</LogFile>
     </TermIOLog>
-    <LogFile>
-        <LoggingEnabled>_ 0</LoggingEnabled>
-        <LogFile>_ ""</LogFile>
-        <Category>_ 0</Category>
-    </LogFile>
     <DisassembleMode>
         <mode>0</mode>
     </DisassembleMode>
     <Breakpoints2>
-        <Bp0>_ 1 "EMUL_CODE" "{d:\work\test5\gd32f303_project\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c}.385.5" 0 0 1 "" 0 "" 0</Bp0>
+        <Bp0>_ 1 "EMUL_CODE" "{$PROJ_DIR$\os\rt-thread\libcpu\arm\cortex-m4\cpuport.c}.385.5" 0 0 1 "" 0 "" 0</Bp0>
         <Bp1>_ 0 "EMUL_CODE" "{$PROJ_DIR$\bsp\board.c}.190.1" 0 0 1 "" 0 "" 0</Bp1>
-        <Bp2>_ 1 "EMUL_CODE" "{d:\work\test5\gd32f303_project\tasks\maintask\main_task.c}.82.5" 0 0 1 "" 0 "" 0</Bp2>
-        <Count>3</Count>
+        <Count>2</Count>
     </Breakpoints2>
     <Aliases>
         <Count>0</Count>

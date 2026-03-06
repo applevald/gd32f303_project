@@ -21,12 +21,14 @@ static _task_base_t *this = RT_NULL;
 static void main_task_normal_init(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len);
 static void main_task_reset_system(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len);
 static void main_task_jobs_handle(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len);
+static void main_task_flush_system_event(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len);
 
 static _event_handle_t event_table[] = {
     {MAIN_TASK_EVENT_INIT,                      main_task_normal_init,                NULL},
     {MAIN_TASK_EVENT_RESET_SYSTEM,              main_task_reset_system,              NULL},
     {MAIN_TASK_JOB_START,                       main_task_jobs_handle,                NULL},
     {MAIN_TASK_JOB_STOP,                        main_task_jobs_handle,                NULL},
+    {MAIN_TASK_FLUSH_SYSTEM_EVENT,              main_task_flush_system_event,              NULL},
 };
 
 static void main_app_task_entry(void *parameter)
@@ -107,9 +109,21 @@ static void main_task_jobs_handle(rt_base_t event, rt_uint8_t *msg, rt_base_t ms
 static void main_task_reset_system(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len)
 {
     // Implement system reset logic here
-    rt_kprintf("System reset requested.");
+    static int counter = 0;
+    counter++;
+    rt_kprintf("System reset requested. Counter: %d\n", counter);
     // For example, you might want to call a function to reset the system
     // reset_system();
+
+}
+static void main_task_flush_system_event(rt_base_t event, rt_uint8_t *msg, rt_base_t msg_len)
+{
+    // Implement system flush logic here
+    static int counter = 0;
+    counter++;
+    rt_kprintf("System flush requested. Counter: %d\n", counter);
+    // For example, you might want to call a function to flush the system events
+    // flush_system_events();
 
 }
 #ifndef RT_USING_USER_MAIN

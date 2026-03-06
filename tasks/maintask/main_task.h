@@ -1,6 +1,7 @@
 #ifndef _MAIN_TASK_H_
 #define _MAIN_TASK_H_
 
+#include "main_task_event.h"
 #include "includes.h"
 #include "task_base.h"
 

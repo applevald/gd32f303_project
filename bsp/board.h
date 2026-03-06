@@ -46,9 +46,13 @@ extern char __ICFEDIT_region_RAM_end__;
 #endif
 
 extern void rt_hw_board_init(void);
+extern void system_clock_108m_config(void);
 
 #ifdef __cplusplus
 }
 #endif
+
+#define COLOR_LIGHT_MOSI_PIN GET_PIN(B, 5)
+
 
 #endif /* __BOARD_H__ */

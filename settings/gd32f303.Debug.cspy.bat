@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "D:\work\test5\gd32f303_project\settings\gd32f303.Debug.general.xcl" --backend -f "D:\work\test5\gd32f303_project\settings\gd32f303.Debug.driver.xcl" 
+"C:\Program Files\IAR Systems\Embedded Workbench 9.2\common\bin\cspybat" -f "D:\Users\admin\Desktop\new_file\gd32f303_project\gd32f303_project\settings\gd32f303.Debug.general.xcl" --backend -f "D:\Users\admin\Desktop\new_file\gd32f303_project\gd32f303_project\settings\gd32f303.Debug.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\common\bin\cspybat" -f "D:\work\test5\gd32f303_project\settings\gd32f303.Debug.general.xcl" "--debug_file=%~1" --backend -f "D:\work\test5\gd32f303_project\settings\gd32f303.Debug.driver.xcl" 
+"C:\Program Files\IAR Systems\Embedded Workbench 9.2\common\bin\cspybat" -f "D:\Users\admin\Desktop\new_file\gd32f303_project\gd32f303_project\settings\gd32f303.Debug.general.xcl" "--debug_file=%~1" --backend -f "D:\Users\admin\Desktop\new_file\gd32f303_project\gd32f303_project\settings\gd32f303.Debug.driver.xcl" 
 
 @echo off 
 :end

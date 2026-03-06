@@ -6,7 +6,7 @@
 
 "-p" 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\CONFIG\debugger\GD\GD32F303xC.ddf" 
+"C:\Program Files\IAR Systems\Embedded Workbench 9.2\arm\config\debugger\GD\GD32F303xC.ddf" 
 
 "--semihosting" 
 
@@ -16,7 +16,7 @@
 
 "--jet_probe=cmsisdap" 
 
-"--jet_script_file=C:\Program Files (x86)\IAR Systems\Embedded Workbench 8.2\arm\config\debugger\GD\GD32.ProbeScript" 
+"--jet_script_file=C:\Program Files\IAR Systems\Embedded Workbench 9.2\arm/config/debugger/GD/GD32.ProbeScript" 
 
 "--jet_standard_reset=1,0,0" 
 

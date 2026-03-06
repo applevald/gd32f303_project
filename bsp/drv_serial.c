@@ -188,9 +188,9 @@ static const struct gd32_uart uart_obj[] = {
         GPIOA, 0, GPIO_PIN_10,                 // rx port, rx alternate, rx pin
         0,                                     // afio remap cfg
 #else
-        RCU_GPIOA, RCU_GPIOA,                  // tx gpio clock, rx gpio clock
-        GPIOA, GPIO_PIN_9,                     // tx port, tx pin
-        GPIOA, GPIO_PIN_10,                    // rx port, rx pin
+        RCU_GPIOB, RCU_GPIOB,                  // tx gpio clock, rx gpio clock
+        GPIOB, GPIO_PIN_6,                     // tx port, tx pin
+        GPIOB, GPIO_PIN_7,                     // rx port, rx pin
 #endif
         &serial0,
         "uart0",
@@ -426,6 +426,15 @@ void gd32_uart_gpio_init(struct gd32_uart *uart)
     }
 
 #else
+    /* Enable AFIO clock for remap */
+    rcu_periph_clock_enable(RCU_AF);
+    
+    /* Configure USART0 remap to PB6/PB7 */
+    if (uart->uart_periph == USART0)
+    {
+        gpio_pin_remap_config(GPIO_USART0_REMAP, ENABLE);
+    }
+    
     /* connect port to USARTx_Tx */
     gpio_init(uart->tx_port, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, uart->tx_pin);
 

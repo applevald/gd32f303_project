@@ -176,6 +176,14 @@
 #define BSP_USING_UART0
 #define BSP_UART0_RX_USING_DMA
 #define BSP_UART0_TX_USING_DMA
+
+/* SPI driver configuration */
+#define RT_USING_SPI
+/* #define BSP_USING_SPI0 */
+/* #define BSP_USING_SPI1 */
+#define BSP_USING_SPI2
+/* end of SPI driver configuration */
+
 /* end of On-chip Peripheral Drivers */
 
 /* Board extended module drivers */
