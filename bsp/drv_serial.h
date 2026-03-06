@@ -48,6 +48,8 @@ struct gd32_uart
     uint16_t rx_pin;                //Todo: 4bits
 #if defined SOC_SERIES_GD32E50x
     uint32_t uart_remap;            //remap
+#elif !defined(SOC_SERIES_GD32F4xx) && !defined(SOC_SERIES_GD32H7xx)
+    uint32_t uart_remap;            //remap for GD32F303 and others
 #endif
 
     struct rt_serial_device * serial;

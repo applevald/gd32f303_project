@@ -191,6 +191,7 @@ static const struct gd32_uart uart_obj[] = {
         RCU_GPIOB, RCU_GPIOB,                  // tx gpio clock, rx gpio clock
         GPIOB, GPIO_PIN_6,                     // tx port, tx pin
         GPIOB, GPIO_PIN_7,                     // rx port, rx pin
+        GPIO_USART0_REMAP,                     // USART0 remap
 #endif
         &serial0,
         "uart0",
@@ -218,6 +219,7 @@ static const struct gd32_uart uart_obj[] = {
         RCU_GPIOA, RCU_GPIOA,                   // periph clock, tx gpio clock, rt gpio clock
         GPIOA, GPIO_PIN_2,                      // tx port, tx pin
         GPIOA, GPIO_PIN_3,                      // rx port, rx pin
+        0,                                      // no remap
 #endif
         &serial1,
         "uart1",
@@ -245,6 +247,7 @@ static const struct gd32_uart uart_obj[] = {
         RCU_GPIOB, RCU_GPIOB,                   // tx gpio clock, rt gpio clock
         GPIOB, GPIO_PIN_10,                     // tx port, tx pin
         GPIOB, GPIO_PIN_11,                     // rx port, rx pin
+        0,                                      // no remap
 #endif
         &serial2,
         "uart2",
@@ -273,6 +276,7 @@ static const struct gd32_uart uart_obj[] = {
         RCU_GPIOC, RCU_GPIOC,                  // periph clock, tx gpio clock, rt gpio clock
         GPIOC, GPIO_PIN_10,                    // tx port, tx pin
         GPIOC, GPIO_PIN_11,                    // rx port, rx pin
+        0,                                     // no remap needed, PC10/PC11 is default for UART3
 #endif
         &serial3,
         "uart3",
@@ -429,10 +433,10 @@ void gd32_uart_gpio_init(struct gd32_uart *uart)
     /* Enable AFIO clock for remap */
     rcu_periph_clock_enable(RCU_AF);
     
-    /* Configure USART0 remap to PB6/PB7 */
-    if (uart->uart_periph == USART0)
+    /* Configure USART0 remap to PB6/PB7 if needed */
+    if (uart->uart_periph == USART0 && uart->uart_remap != 0)
     {
-        gpio_pin_remap_config(GPIO_USART0_REMAP, ENABLE);
+        gpio_pin_remap_config(uart->uart_remap, ENABLE);
     }
     
     /* connect port to USARTx_Tx */
