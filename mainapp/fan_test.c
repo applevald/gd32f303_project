@@ -5,6 +5,21 @@
  * FAN11: PB14 - TIMER0_CH1N(默认映射) - 鼓风扇
  * 
  * 注意: GD32F303RCT6(HD)没有TIMER11, PB14对应的硬件PWM通道是TIMER0_CH1N (通道1互补输出)
+ * 
+ * FAN1的FG引脚是PA5,
+ * FAN2的FG引脚是PA4,
+ * FAN3的FG引脚是PA7,
+ * FAN4的FG引脚是PC4,
+ * FAN5的FG引脚是PC5,
+ * FAN6的FG引脚是PB0,
+ * FAN7的FG引脚是PB10,
+ * FAN8的FG引脚是PB11,
+ * FAN9的FG引脚是PB12,
+ * FAN10的FG引脚是PB13,
+ * FAN11的FG引脚是PB15,
+ * FAN12的FG引脚是PC6,
+ * FAN13的FG引脚是PC7,
+ * FAN14的FG引脚是PC8,
  */
 
 #include <rtthread.h>

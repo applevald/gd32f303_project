@@ -90,42 +90,52 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             }
             break;
             
-        case CMD_CONTROL_DEVICE:
-            /* 控制设备命令 */
-            if (len >= 1)
+        case CMD_FAN_GETSPEED:
+            /* 获取风扇转速查询命令 */
+            rt_kprintf("[App] Fan speed query command received\n");
             {
-                uint8_t device_cmd = data[0];
-                rt_kprintf("[App] Control device: 0x%02X\n", device_cmd);
+                /* 启动测量（会阻塞约1秒）*/
+                extern rt_err_t start_fan_speed_measure(void);
+                if (start_fan_speed_measure() != RT_EOK)
+                {
+                    rt_kprintf("[App] Fan speed measurement failed\n");
+                    protocol_send_response_error(CMD_FAN_GETSPEED, 0x02);
+                    break;
+                }
                 
-                /* 这里添加实际的设备控制逻辑 */
-                g_device_state.device_status = device_cmd;
+                /* 获取测量结果 */
+                uint8_t fan_data[28] = {0};
+                extern int get_fan_speed(uint8_t *data, uint16_t len);
+                int data_len = get_fan_speed(fan_data, sizeof(fan_data));
                 
-                /* 发送应答 */
-                protocol_send_response_ok(cmd, RT_NULL, 0);
-            }
-            else
-            {
-                protocol_send_response_error(cmd, 0x01);
+                if (data_len > 0)
+                {
+                    /* 打印调试信息 */
+                    rt_kprintf("[App] Fan speed data: ");
+                    for (int i = 0; i < data_len && i < 28; i++)
+                    {
+                        rt_kprintf("%02X ", fan_data[i]);
+                        if (i % 2 == 1) rt_kprintf(" ");
+                    }
+                    rt_kprintf("\n");
+                    
+                    /* 发送应答（包含风扇转速数据）*/
+                    protocol_send_response_ok(CMD_FAN_GETSPEED, fan_data, data_len);
+                }
+                else
+                {
+                    /* 数据获取失败 */
+                    protocol_send_response_error(CMD_FAN_GETSPEED, 0x03);
+                }
             }
             break;
             
-        case CMD_READ_DATA:
-            /* 读取数据命令 */
-            rt_kprintf("[App] Read data command received\n");
-            {
-                /* 模拟读取的数据 */
-                uint8_t read_data[8];
-                read_data[0] = 0x11;
-                read_data[1] = 0x22;
-                read_data[2] = 0x33;
-                read_data[3] = 0x44;
-                read_data[4] = (g_device_state.data_value >> 8) & 0xFF;
-                read_data[5] = g_device_state.data_value & 0xFF;
-                read_data[6] = g_device_state.mode;
-                read_data[7] = g_device_state.device_status;
+        case CMD_FAN_STATUS:
+            {  
+                uint8_t fan_status_data[28] = {0};
                 
                 /* 发送应答 */
-                protocol_send_response_ok(cmd, read_data, sizeof(read_data));
+                protocol_send_response_ok(cmd, fan_status_data, sizeof(fan_status_data));
             }
             break;
             
@@ -152,6 +162,38 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             }
             else
             {
+                protocol_send_response_error(cmd, 0x01);
+            }
+            break;
+
+        case CMD_LIGHT_BAR:
+            /* 进度灯条控制命令 */
+            if (len >= 4)
+            {
+                uint8_t progress = data[0];           /* 字节0: 进度值(0-100) */
+                uint16_t color_param = (data[1] << 8) | data[2];  /* 字节1-2: 颜色参数(16位) */
+                uint8_t breath_mode = data[3];        /* 字节3: 呼吸参数 */
+                
+                rt_kprintf("[App] Light bar command: progress=%d, color=0x%04X, breath=0x%02X\n", 
+                          progress, color_param, breath_mode);
+                
+                /* 调用灯条控制函数 */
+                extern rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint16_t color_param, rt_uint8_t breath_mode);
+                if (ws2812_bar_protocol_control(progress, color_param, breath_mode) == RT_EOK)
+                {
+                    /* 发送成功应答，回显原始数据 */
+                    protocol_send_response_ok(cmd, data, 4);
+                }
+                else
+                {
+                    /* 发送失败应答 */
+                    protocol_send_response_error(cmd, 0x02);
+                }
+            }
+            else
+            {
+                /* 参数长度错误 */
+                rt_kprintf("[App] Error: CMD_LIGHT_BAR requires 4 bytes, got %d\n", len);
                 protocol_send_response_error(cmd, 0x01);
             }
             break;
@@ -246,32 +288,14 @@ static void cmd_set_mode(int argc, char **argv)
 MSH_CMD_EXPORT_ALIAS(cmd_set_mode, proto_setmode, Send set mode command);
 
 /**
- * @brief Shell命令：发送控制设备命令
- */
-static void cmd_control_device(int argc, char **argv)
-{
-    if (argc >= 2)
-    {
-        uint8_t ctrl = (uint8_t)atoi(argv[1]);
-        protocol_send_frame(CMD_CONTROL_DEVICE, &ctrl, 1);
-        rt_kprintf("Control device command sent: 0x%02X\n", ctrl);
-    }
-    else
-    {
-        rt_kprintf("Usage: proto_ctrl <value>\n");
-    }
-}
-MSH_CMD_EXPORT_ALIAS(cmd_control_device, proto_ctrl, Send control device command);
-
-/**
  * @brief Shell命令：发送读取数据命令
  */
-static void cmd_read_data(int argc, char **argv)
+static void CMD_FAN_STATUS(int argc, char **argv)
 {
-    protocol_send_frame(CMD_READ_DATA, RT_NULL, 0);
+    protocol_send_frame(CMD_FAN_STATUS, RT_NULL, 0);
     rt_kprintf("Read data command sent\n");
 }
-MSH_CMD_EXPORT_ALIAS(cmd_read_data, proto_read, Send read data command);
+MSH_CMD_EXPORT_ALIAS(CMD_FAN_STATUS, proto_read, Send read data command);
 
 /**
  * @brief Shell命令：发送写入数据命令
@@ -332,3 +356,37 @@ static void cmd_send_custom(int argc, char **argv)
     }
 }
 MSH_CMD_EXPORT_ALIAS(cmd_send_custom, proto_custom, Send custom protocol command);
+
+/**
+ * @brief Shell命令：发送进度灯条控制命令
+ * @note  测试CMD_LIGHT_BAR (0xA5)
+ */
+static void cmd_light_bar(int argc, char **argv)
+{
+    if (argc >= 4)
+    {
+        uint8_t progress = (uint8_t)atoi(argv[1]);       /* 进度值 0-100 */
+        uint16_t color = (uint16_t)strtol(argv[2], NULL, 16);  /* 颜色参数(hex) */
+        uint8_t breath = (uint8_t)strtol(argv[3], NULL, 16);   /* 呼吸模式(hex) */
+        
+        uint8_t data[4];
+        data[0] = progress;
+        data[1] = (color >> 8) & 0xFF;  /* 颜色高字节 */
+        data[2] = color & 0xFF;          /* 颜色低字节 */
+        data[3] = breath;
+        
+        protocol_send_frame(CMD_LIGHT_BAR, data, 4);
+        rt_kprintf("Light bar command sent: progress=%d%%, color=0x%04X, breath=0x%02X\n", 
+                  progress, color, breath);
+    }
+    else
+    {
+        rt_kprintf("Usage: proto_lightbar <progress> <color_hex> <breath_hex>\n");
+        rt_kprintf("Example: proto_lightbar 50 0001 00    (50%% progress, red, no breath)\n");
+        rt_kprintf("         proto_lightbar 75 0004 01    (75%% progress, green, slow breath)\n");
+        rt_kprintf("         proto_lightbar 100 0000 00   (100%% progress, white, no breath)\n");
+        rt_kprintf("\nColor codes: 0x00=white, 0x01=red, 0x02=yellow, 0x03=blue, 0x04=green\n");
+        rt_kprintf("Breath modes: 0x00=off, 0x01=slow, 0x02=medium, 0x03=fast\n");
+    }
+}
+MSH_CMD_EXPORT_ALIAS(cmd_light_bar, proto_lightbar, Send light bar control command);

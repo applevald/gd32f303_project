@@ -2294,6 +2294,12 @@
             <name>$PROJ_DIR$\mainapp\color_light.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\mainapp\fan_speed_measure.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\fan_speed_measure.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\mainapp\fan_test.c</name>
         </file>
         <file>

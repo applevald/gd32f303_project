@@ -99,7 +99,7 @@
 #define RT_USING_DEVICE_IPC
 #define RT_USING_SERIAL
 #define RT_USING_SERIAL_V1
-#define RT_SERIAL_RB_BUFSZ 64
+#define RT_SERIAL_RB_BUFSZ 256  /* Increased from 64 to 256 for protocol data */
 /* end of Device Drivers */
 
 /* Using USB */

@@ -32,11 +32,12 @@
 #define PROTOCOL_MAX_DATA_LEN   (PROTOCOL_MAX_FRAME_LEN - PROTOCOL_MIN_FRAME_LEN)
 
 /* 命令码定义（0xAx格式）*/
-#define CMD_QUERY_STATUS        0xA5    /* 查询状态 */
+#define CMD_QUERY_STATUS        0xA9    /* 查询状态 */
 #define CMD_SET_FAN            0xA1    /* 设置模式 */
-#define CMD_CONTROL_DEVICE      0xA2    /* 控制设备 */
-#define CMD_READ_DATA           0xA3    /* 读取数据 */
+#define CMD_FAN_GETSPEED        0xA2    /* 获取风扇的速度 */
+#define CMD_FAN_STATUS           0xA3    /* 读取风扇状态*/
 #define CMD_COLOR_LIGHT          0xA4    /* 三色灯控制 */
+#define CMD_LIGHT_BAR           0xA5    /* 灯条控制 */
 #define CMD_HEARTBEAT           0xA0    /* 心跳包 */
 #define CMD_RESPONSE_OK         0xAA    /* 应答成功 */
 #define CMD_RESPONSE_ERROR      0xAE    /* 应答失败 */

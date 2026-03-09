@@ -37,6 +37,17 @@
 /* 颜色缓冲区 (GRB格式) */
 static rt_uint8_t ws2812_color_buffer[WS2812_LED_NUM * 3];
 
+/* 呼吸效果控制结构 */
+typedef struct {
+    rt_uint8_t enable;          /* 是否启用呼吸效果 */
+    rt_uint8_t mode;            /* 呼吸模式 0x01=慢速 0x02=中速 0x03=快速 */
+    rt_uint8_t progress;        /* 进度值 */
+    rt_uint8_t r, g, b;         /* RGB颜色 */
+} breath_ctrl_t;
+
+static breath_ctrl_t g_breath_ctrl = {0};
+static rt_thread_t breath_thread = RT_NULL;
+
 /**
  * @brief  微秒级延时
  * @param  us: 延时时间(微秒)
@@ -208,8 +219,8 @@ void ws2812_bar_set_color(rt_uint8_t index, rt_uint8_t red, rt_uint8_t green, rt
     }
     
     /* WS2812的颜色顺序是GRB */
-    ws2812_color_buffer[index * 3 + 0] = green;  /* G */
-    ws2812_color_buffer[index * 3 + 1] = red;    /* R */
+    ws2812_color_buffer[index * 3 + 0] = red;  /* G */
+    ws2812_color_buffer[index * 3 + 1] = green;    /* R */
     ws2812_color_buffer[index * 3 + 2] = blue;   /* B */
 }
 
@@ -303,6 +314,279 @@ static int ws2812_bar_test(int argc, char **argv)
     return 0;
 }
 MSH_CMD_EXPORT(ws2812_bar_test, Set all LEDs color: ws2812_bar_test <r> <g> <b>);
+
+/**
+ * @brief  根据进度值点亮LED（进度条效果）
+ * @param  progress: 进度值(0-100)
+ * @param  red: 红色分量(0-255)
+ * @param  green: 绿色分量(0-255)
+ * @param  blue: 蓝色分量(0-255)
+ * @note   根据进度点亮对应数量的LED
+ */
+void ws2812_bar_set_progress(rt_uint8_t progress, rt_uint8_t red, rt_uint8_t green, rt_uint8_t blue)
+{
+    rt_uint8_t i;
+    rt_uint8_t leds_to_light;
+    
+    /* 限制进度值范围 */
+    if (progress > 100)
+    {
+        progress = 100;
+    }
+    
+    /* 计算需要点亮的LED数量 */
+    leds_to_light = (progress * WS2812_LED_NUM) / 100;
+    
+    /* 清空所有LED */
+    for (i = 0; i < WS2812_LED_NUM; i++)
+    {
+        ws2812_bar_set_color(i, 0, 0, 0);
+    }
+    
+    /* 点亮对应数量的LED */
+    for (i = 0; i < leds_to_light; i++)
+    {
+        ws2812_bar_set_color(i, red, green, blue);
+    }
+}
+
+/**
+ * @brief  呼吸效果线程
+ * @param  parameter: 线程参数
+ */
+static void breath_thread_entry(void *parameter)
+{
+    rt_uint16_t delay_ms;
+    
+    while (1)
+    {
+        if (g_breath_ctrl.enable)
+        {
+            /* 根据呼吸模式设置延时 */
+            switch (g_breath_ctrl.mode)
+            {
+                case 0x01:  /* 慢速：2秒周期 */
+                    delay_ms = 1000;
+                    break;
+                case 0x02:  /* 中速：1秒周期 */
+                    delay_ms = 500;
+                    break;
+                case 0x03:  /* 快速：0.5秒周期 */
+                    delay_ms = 250;
+                    break;
+                default:
+                    delay_ms = 1000;
+                    break;
+            }
+            
+            /* 亮 */
+            ws2812_bar_set_progress(g_breath_ctrl.progress, 
+                                   g_breath_ctrl.r, 
+                                   g_breath_ctrl.g, 
+                                   g_breath_ctrl.b);
+            ws2812_bar_update();
+            rt_thread_mdelay(delay_ms);
+            
+            /* 灭 */
+            ws2812_bar_clear();
+            rt_thread_mdelay(delay_ms);
+        }
+        else
+        {
+            /* 未启用呼吸效果，休眠 */
+            rt_thread_mdelay(100);
+        }
+    }
+}
+
+/**
+ * @brief  启动呼吸效果
+ * @param  progress: 进度值
+ * @param  r, g, b: RGB颜色
+ * @param  mode: 呼吸模式
+ */
+static void start_breath_effect(rt_uint8_t progress, rt_uint8_t r, rt_uint8_t g, rt_uint8_t b, rt_uint8_t mode)
+{
+    /* 初始化灯带（如果还未初始化）*/
+    static rt_bool_t initialized = RT_FALSE;
+    if (!initialized)
+    {
+        ws2812_bar_init();
+        initialized = RT_TRUE;
+    }
+    
+    /* 如果线程已存在，先停止旧的呼吸效果 */
+    if (breath_thread != RT_NULL)
+    {
+        g_breath_ctrl.enable = 0;
+        rt_thread_mdelay(50);  /* 等待线程完成当前循环 */
+    }
+    
+    /* 设置新的呼吸参数 */
+    g_breath_ctrl.progress = progress;
+    g_breath_ctrl.r = r;
+    g_breath_ctrl.g = g;
+    g_breath_ctrl.b = b;
+    g_breath_ctrl.mode = mode;
+    g_breath_ctrl.enable = 1;
+    
+    /* 创建呼吸线程（如果还没创建）*/
+    if (breath_thread == RT_NULL)
+    {
+        breath_thread = rt_thread_create("breath",
+                                        breath_thread_entry,
+                                        RT_NULL,
+                                        1024,
+                                        15,
+                                        10);
+        if (breath_thread != RT_NULL)
+        {
+            rt_thread_startup(breath_thread);
+            rt_kprintf("[LightBar] Breath thread created and started\n");
+        }
+        else
+        {
+            rt_kprintf("[LightBar] ERROR: Failed to create breath thread\n");
+        }
+    }
+    else
+    {
+        rt_kprintf("[LightBar] Breath thread already exists, parameters updated\n");
+    }
+}
+
+/**
+ * @brief  停止呼吸效果
+ */
+static void stop_breath_effect(void)
+{
+    /* 初始化灯带（如果还未初始化）*/
+    static rt_bool_t initialized = RT_FALSE;
+    if (!initialized)
+    {
+        ws2812_bar_init();
+        initialized = RT_TRUE;
+    }
+    
+    /* 停止呼吸效果 */
+    g_breath_ctrl.enable = 0;
+    rt_kprintf("[LightBar] Breath effect stopped\n");
+}
+
+/**
+ * @brief  解析16位颜色参数为RGB分量
+ * @param  color_param: 16位颜色参数(2字节)
+ * @param  r: 红色分量输出指针
+ * @param  g: 绿色分量输出指针
+ * @param  b: 蓝色分量输出指针
+ * @note   颜色编码：
+ *         - 高8位: 进度条颜色 (0-全色, 1-99按比例混合, 100-全色)
+ *         - 低8位: 颜色值 (bit[7]:进度标志, bit[6:0]:颜色编码)
+ *         根据协议文档定义的颜色码
+ */
+static void ws2812_parse_color(rt_uint16_t color_param, rt_uint8_t *r, rt_uint8_t *g, rt_uint8_t *b)
+{
+    rt_uint8_t color_index = color_param & 0xFF;  /* 低8位为颜色索引 */
+    
+    /* 默认颜色映射 */
+    switch (color_index)
+    {
+        case 0x00:  /* 全白 */
+            *r = 255; *g = 255; *b = 255;
+            break;
+        case 0x01:  /* 红色 */
+            *r = 255; *g = 0; *b = 0;
+            break;
+        case 0x02:  /* 黄色 */
+            *r = 255; *g = 255; *b = 0;
+            break;
+        case 0x03:  /* 蓝色 */
+            *r = 0; *g = 0; *b = 255;
+            break;
+        case 0x04:  /* 绿色 */
+            *r = 0; *g = 255; *b = 0;
+            break;
+        default:    /* 其他值按白色处理 */
+            *r = 255; *g = 255; *b = 255;
+            break;
+    }
+}
+
+/**
+ * @brief  协议控制函数 - 处理灯条控制命令
+ * @param  progress: 进度值(0-100)
+ * @param  color_param: 颜色参数(16位，2字节)
+ * @param  breath_mode: 呼吸模式(8位)
+ * @retval RT_EOK: 成功
+ * @note   根据协议0xA5命令格式处理进度灯显示
+ */
+rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint16_t color_param, rt_uint8_t breath_mode)
+{
+    rt_uint8_t r, g, b;
+    
+    rt_kprintf("[LightBar] Protocol control: progress=%d, color=0x%04X, breath=0x%02X\n", 
+               progress, color_param, breath_mode);
+    
+    /* 解析颜色参数 */
+    ws2812_parse_color(color_param, &r, &g, &b);
+    
+    /* 根据呼吸模式调整显示 */
+    if (breath_mode == 0x00)
+    {
+        /* 关闭呼吸效果，正常显示 */
+        stop_breath_effect();
+        ws2812_bar_set_progress(progress, r, g, b);
+        ws2812_bar_update();
+    }
+    else
+    {
+        /* 启动持续呼吸效果 */
+        start_breath_effect(progress, r, g, b, breath_mode);
+    }
+    
+    rt_kprintf("[LightBar] Display updated - %d%% progress, RGB(%d,%d,%d)\n", 
+               progress, r, g, b);
+    
+    return RT_EOK;
+}
+
+/**
+ * @brief  测试函数：设置进度条显示
+ * @param  progress: 进度值(0-100)
+ * @usage  ws2812_bar_progress 50  (50%进度，绿色)
+ */
+static int ws2812_bar_progress(int argc, char **argv)
+{
+    int progress;
+    
+    if (argc != 2) {
+        rt_kprintf("Usage: ws2812_bar_progress <progress>\n");
+        rt_kprintf("Example: ws2812_bar_progress 50  (50%% progress)\n");
+        rt_kprintf("         ws2812_bar_progress 0   (0%% - all off)\n");
+        rt_kprintf("         ws2812_bar_progress 100 (100%% - all on)\n");
+        return -1;
+    }
+    
+    progress = atoi(argv[1]);
+    
+    if (progress < 0 || progress > 100) {
+        rt_kprintf("Error: Progress must be 0-100\n");
+        return -1;
+    }
+    
+    /* 初始化 */
+    ws2812_bar_init();
+    
+    /* 设置进度显示（默认绿色）*/
+    ws2812_bar_set_progress((rt_uint8_t)progress, 0, 255, 0);
+    ws2812_bar_update();
+    
+    rt_kprintf("WS2812 Bar: Set progress to %d%% (%d LEDs lit)\n", 
+               progress, (progress * WS2812_LED_NUM) / 100);
+    
+    return 0;
+}
+MSH_CMD_EXPORT(ws2812_bar_progress, Set LED bar progress: ws2812_bar_progress <0-100>);
 
 /* MSH命令导出 */
 #ifdef RT_USING_FINSH
