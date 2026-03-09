@@ -605,7 +605,7 @@ void ws2811_update(void)
         ws2811_send_byte(ws2811_color_buffer[i]);
     }
     
-    /* Reset信号 (>50μs低电平) */
+    /* Reset信号 (>280μs低电平) */
     WS2811_PIN_LOW();
     delay_us(300);  /* 300μs复位脉冲,足够让LED锁存数据 */
     
@@ -718,6 +718,169 @@ static void ws2811_flow_entry(void *parameter)
         // rt_thread_mdelay(300);
     }
 }
+
+static void set_led_color(rt_uint8_t index, rt_uint8_t r, rt_uint8_t g, rt_uint8_t b)
+{
+    /* 初始化 */
+    ws2811_init();
+    
+    ws2811_stop_effect();  /* 停止旧线程 */
+
+    ws2811_set_color(index, r, g, b);
+    ws2811_update();
+}
+
+/* ==================== 协议灯光控制 ==================== */
+
+/* 呼吸模式参数 */
+static rt_uint8_t g_breath_color_r = 0;
+static rt_uint8_t g_breath_color_g = 0;
+static rt_uint8_t g_breath_color_b = 0;
+static rt_uint16_t g_breath_period = 0;  /* 呼吸周期(ms) */
+
+/**
+ * @brief  协议呼吸灯线程入口
+ * @param  parameter: 线程参数(未使用)
+ */
+static void ws2811_protocol_breath_entry(void *parameter)
+{
+    rt_uint16_t brightness;
+    rt_uint16_t step = 5;  /* 亮度步进值 */
+    
+    while (1)
+    {
+        /* 亮度从0到255 */
+        for (brightness = 0; brightness <= 255; brightness += step)
+        {
+            ws2811_set_all(
+                (g_breath_color_r * brightness) / 255,
+                (g_breath_color_g * brightness) / 255,
+                (g_breath_color_b * brightness) / 255
+            );
+            ws2811_update();
+            rt_thread_mdelay(g_breath_period / (255 / step * 2));  /* 平滑过渡 */
+        }
+        
+        /* 亮度从255到0 */
+        for (brightness = 255; brightness > 0; brightness -= step)
+        {
+            ws2811_set_all(
+                (g_breath_color_r * brightness) / 255,
+                (g_breath_color_g * brightness) / 255,
+                (g_breath_color_b * brightness) / 255
+            );
+            ws2811_update();
+            rt_thread_mdelay(g_breath_period / (255 / step * 2));
+        }
+    }
+}
+
+/**
+ * @brief  协议灯光控制函数
+ * @param  color: 颜色值 (0x00=绿色, 0x01=黄色, 0x02=红色)
+ * @param  breath_mode: 呼吸模式 (0x00=关闭, 0x01=慢速2s, 0x02=中速1s, 0x03=快速0.5s)
+ * @retval RT_EOK: 成功, -RT_ERROR: 失败
+ */
+rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode)
+{
+    rt_uint8_t r = 0, g = 0, b = 0;
+    
+    rt_kprintf("\n[WS2811 Protocol Control]\n");
+    rt_kprintf("  Input: color=0x%02X, breath_mode=0x%02X\n", color, breath_mode);
+    
+    /* 初始化 */
+    ws2811_init();
+    
+    /* 停止旧的灯效线程 */
+    ws2811_stop_effect();
+    
+    /* 根据颜色值设置RGB */
+    switch (color)
+    {
+        case 0x00:  /* 绿色 */
+            r = 0; g = 255; b = 0;
+            rt_kprintf("  Color: Green\n");
+            break;
+            
+        case 0x01:  /* 黄色 */
+            r = 255; g = 255; b = 0;
+            rt_kprintf("  Color: Yellow\n");
+            break;
+            
+        case 0x02:  /* 红色 */
+            r = 255; g = 0; b = 0;
+            rt_kprintf("  Color: Red\n");
+            break;
+            
+        default:
+            rt_kprintf("WS2811: Unknown color code 0x%02X\n", color);
+            return -RT_ERROR;
+    }
+    
+    rt_kprintf("  RGB values: R=%d, G=%d, B=%d\n", r, g, b);
+    
+    /* 根据呼吸模式设置 */
+    if (breath_mode == 0x00)
+    {
+        /* 常亮模式 */
+        rt_kprintf("  Mode: Steady (always on)\n");
+        rt_kprintf("  Calling ws2811_set_all(%d, %d, %d)...\n", r, g, b);
+        ws2811_set_all(r, g, b);
+        rt_kprintf("  Calling ws2811_update()...\n");
+        ws2811_update();
+        rt_kprintf("  ✓ Color set successfully - RGB(%d,%d,%d), steady mode\n", r, g, b);
+    }
+    else
+    {
+        /* 呼吸模式 */
+        g_breath_color_r = r;
+        g_breath_color_g = g;
+        g_breath_color_b = b;
+        
+        /* 设置呼吸周期 */
+        switch (breath_mode)
+        {
+            case 0x01:  /* 慢速呼吸 - 2秒周期 */
+                g_breath_period = 2000;
+                break;
+                
+            case 0x02:  /* 中速呼吸 - 1秒周期 */
+                g_breath_period = 1000;
+                break;
+                
+            case 0x03:  /* 快速呼吸 - 0.5秒周期 */
+                g_breath_period = 500;
+                break;
+                
+            default:
+                rt_kprintf("WS2811: Unknown breath mode 0x%02X\n", breath_mode);
+                return -RT_ERROR;
+        }
+        
+        /* 创建呼吸灯线程 */
+        light_thread = rt_thread_create("led_proto_breath",
+                                 ws2811_protocol_breath_entry,
+                                 RT_NULL,
+                                 512,
+                                 10,
+                                 10);
+        
+        if (light_thread != RT_NULL)
+        {
+            rt_thread_startup(light_thread);
+            rt_kprintf("WS2811: Set color RGB(%d,%d,%d), breath mode=%d, period=%dms\n", 
+                      r, g, b, breath_mode, g_breath_period);
+        }
+        else
+        {
+            rt_kprintf("WS2811: Failed to create breath thread\n");
+            return -RT_ERROR;
+        }
+    }
+    
+    return RT_EOK;
+}
+
 
 /**
  * @brief  呼吸灯灯效线程入口
@@ -1045,6 +1208,90 @@ static int ws2811_led2(int argc, char **argv)
     return 0;
 }
 MSH_CMD_EXPORT(ws2811_led2, Test LED2: ws2811_led2 <r> <g> <b>);
+
+static int color_light_all(int argc, char **argv)
+{
+    int r, g, b;
+    
+    if (argc != 4) {
+        rt_kprintf("Usage: ws2811_test_all <r> <g> <b>\n");
+        return -1;
+    }
+
+    ws2811_init();
+    ws2811_stop_effect();
+    
+    r = atoi(argv[1]);
+    g = atoi(argv[2]);
+    b = atoi(argv[3]);
+    
+    ws2811_test_color(r, g, b);
+    return 0;
+}
+MSH_CMD_EXPORT(color_light_all, Test all LEDs: color_light_all <r> <g> <b>);
+
+/**
+ * @brief  测试函数：协议灯光控制命令
+ * @usage  ws2811_proto_test <color> <breath_mode>
+ *         color: 0x00=绿色, 0x01=黄色, 0x02=红色
+ *         breath_mode: 0x00=常亮, 0x01=慢呼吸(2s), 0x02=中速呼吸(1s), 0x03=快呼吸(0.5s)
+ */
+static int ws2811_proto_test(int argc, char **argv)
+{
+    int color, breath_mode;
+    rt_err_t result;
+    
+    if (argc != 3) {
+        rt_kprintf("Usage: ws2811_proto_test <color> <breath_mode>\n");
+        rt_kprintf("  color: 0=Green, 1=Yellow, 2=Red\n");
+        rt_kprintf("  breath_mode: 0=Steady, 1=Slow(2s), 2=Medium(1s), 3=Fast(0.5s)\n");
+        return -1;
+    }
+    
+    color = atoi(argv[1]);
+    breath_mode = atoi(argv[2]);
+    
+    rt_kprintf("==> Calling ws2811_protocol_control(color=%d, breath_mode=%d)\n", color, breath_mode);
+    
+    extern rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode);
+    result = ws2811_protocol_control((rt_uint8_t)color, (rt_uint8_t)breath_mode);
+    
+    if (result == RT_EOK) {
+        rt_kprintf("==> Command executed successfully!\n");
+    } else {
+        rt_kprintf("==> Command failed with error code: %d\n", result);
+    }
+    
+    return 0;
+}
+MSH_CMD_EXPORT(ws2811_proto_test, Protocol light test: ws2811_proto_test <color> <breath>);
+
+/**
+ * @brief  测试函数：直接设置红色(调试用)
+ */
+static int test_red(int argc, char **argv)
+{
+    rt_kprintf("\n[Direct Red Test]\n");
+    rt_kprintf("Step 1: Init...\n");
+    ws2811_init();
+    
+    rt_kprintf("Step 2: Stop effects...\n");
+    ws2811_stop_effect();
+    
+    rt_kprintf("Step 3: Set all to RED (255, 0, 0)...\n");
+    ws2811_set_all(255, 0, 0);
+    
+    rt_kprintf("Step 4: Update display...\n");
+    ws2811_update();
+    
+    rt_kprintf("Step 5: Dump buffer...\n");
+    for (rt_uint8_t i = 0; i < sizeof(ws2811_color_buffer); i++) {
+        rt_kprintf("0x%02X ", ws2811_color_buffer[i]);
+    }
+    rt_kprintf("\n✓ Red test completed!\n");
+    return 0;
+}
+MSH_CMD_EXPORT(test_red, Direct red color test for debugging);
 
 /* MSH命令导出 */
 #ifdef RT_USING_FINSH

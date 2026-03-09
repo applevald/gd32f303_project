@@ -45,7 +45,7 @@ void input_monitor_job_fuc(_job *my_jop,void *arg)
     static int counter = 0;
     counter++;
     /* do input port check */
-    rt_kprintf("Input monitor job running... Counter: %d\n", counter);
+    // rt_kprintf("Input monitor job running... Counter: %d\n", counter);
     post_event_to_me(my_jop->owner, MAIN_TASK_FLUSH_SYSTEM_EVENT, RT_FALSE);  // Post flush system event
 }
 

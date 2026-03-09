@@ -16,10 +16,10 @@
 #define UART_NAME       "uart3"
 
 /* Serial device handle */
-static rt_device_t serial;
+rt_device_t serial;
 
 /* Semaphore for sync */
-static struct rt_semaphore rx_sem;
+struct rt_semaphore rx_sem;
 
 /* Receive callback function */
 static rt_err_t uart_input(rt_device_t dev, rt_size_t size)

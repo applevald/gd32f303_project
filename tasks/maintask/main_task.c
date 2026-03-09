@@ -121,7 +121,7 @@ static void main_task_flush_system_event(rt_base_t event, rt_uint8_t *msg, rt_ba
     // Implement system flush logic here
     static int counter = 0;
     counter++;
-    rt_kprintf("System flush requested. Counter: %d\n", counter);
+    // rt_kprintf("System flush requested. Counter: %d\n", counter);
     // For example, you might want to call a function to flush the system events
     // flush_system_events();
 

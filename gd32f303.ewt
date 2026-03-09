@@ -2968,6 +2968,15 @@
             <name>$PROJ_DIR$\mainapp\main.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\mainapp\protocol.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\protocol.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\protocol_app.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\mainapp\usart_Communication.c</name>
         </file>
         <file>

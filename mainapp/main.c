@@ -41,13 +41,13 @@ int main(void)
     rt_hw_spi_init();
     rt_kprintf("SPI driver initialized\n");
 
-    ws2811_test_flow();//test，以上电就亮绿灯，后续可以删除
+    // ws2811_test_flow();//test，以上电就亮绿灯，后续可以删除
     fan_init(); //风扇初始化
     
     while (1)
     {
         LOG_E("test....\n");
-        rt_thread_mdelay(1000);
+        rt_thread_mdelay(5000);
 
     }
 }
