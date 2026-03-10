@@ -15,6 +15,8 @@ extern rt_err_t fan_init(void); /* 添加风扇初始化声明 */
 extern void fan_test(void); /* 添加风扇测试声明 */
 extern int fan_speed_measure_init(void); /* 添加风扇测速初始化声明 */
 extern int temp_measure_init(void); /* 添加温度测量初始化声明 */
+extern void heater_init(void);
+ 
 
 int main(void)
 {

@@ -218,7 +218,38 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 protocol_send_response_error(cmd, 0x01);
             }
             break;
+        
+        case CMD_ALL_STATUS:
+            float current_temp;
+            uint8_t all_status_data[32] = {0}; /* 示例数据区，实际长度和内容根据需求调整 */
+            extern rt_err_t temp_measure_get_temperature(float *temp);
+            temp_measure_get_temperature(&current_temp);
+            uint16_t temp_data = (uint16_t)(current_temp * 100);
+            all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度整数部分 */
+            all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度小数部分 */
+            //目标温度-Todo:  
+            all_status_data[2] = 25;   
+
+            extern void heater_get_state(uint8_t *state);
+            uint8_t heater_state;    
+            heater_get_state(&heater_state);
+            all_status_data[3] = heater_state;//NTC状态
+
+            /* 先启动测量（会阻塞约1秒）*/
+                extern rt_err_t start_fan_speed_measure(void);
+                start_fan_speed_measure();
+                
+                /* 获取目标速度数组 */
+                extern const uint8_t* fan_get_target_speed_array(void);
+                const uint8_t *target_speed = fan_get_target_speed_array();
+
+                extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
+                get_fan_status(all_status_data + 4, 28, target_speed);
             
+            protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 32);
+
+            break;
+
         case CMD_HEARTBEAT:
             /* 心跳包 */
             rt_kprintf("[App] Heartbeat received\n");

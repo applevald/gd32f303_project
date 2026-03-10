@@ -37,6 +37,7 @@
 #define CMD_FAN_STATUS           0xA3    /* 读取风扇状态*/
 #define CMD_COLOR_LIGHT          0xA4    /* 三色灯控制 */
 #define CMD_LIGHT_BAR           0xA5    /* 灯条控制 */
+#define CMD_ALL_STATUS           0xA6    /* 读取所有状态 */
 #define CMD_HEARTBEAT           0xA0    /* 心跳包 */
 #define CMD_RESPONSE_ERROR      0xAE    /* 应答失败 */
 

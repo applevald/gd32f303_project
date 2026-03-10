@@ -2303,6 +2303,9 @@
             <name>$PROJ_DIR$\mainapp\fan_test.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\mainapp\heater.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\mainapp\light_bar.c</name>
         </file>
         <file>
