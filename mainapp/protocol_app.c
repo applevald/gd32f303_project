@@ -39,20 +39,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
     
     switch (cmd)
     {
-        case CMD_QUERY_STATUS:
-            /* 查询状态命令 */
-            rt_kprintf("[App] Query status command received\n");
-            {
-                uint8_t status_data[4];
-                status_data[0] = g_device_state.mode;
-                status_data[1] = g_device_state.device_status;
-                status_data[2] = (g_device_state.data_value >> 8) & 0xFF;
-                status_data[3] = g_device_state.data_value & 0xFF;
-                
-                /* 发送应答 */
-                protocol_send_response_ok(cmd, status_data, sizeof(status_data));
-            }
-            break;
             
         case CMD_SET_FAN:
             /* 设置风扇速度命令 */
@@ -131,11 +117,46 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             break;
             
         case CMD_FAN_STATUS:
-            {  
-                uint8_t fan_status_data[28] = {0};
+            /* 获取风扇状态查询命令 */
+            rt_kprintf("[App] Fan status query command received\n");
+            {
+                /* 先启动测量（会阻塞约1秒）*/
+                extern rt_err_t start_fan_speed_measure(void);
+                if (start_fan_speed_measure() != RT_EOK)
+                {
+                    rt_kprintf("[App] Fan speed measurement failed\n");
+                    protocol_send_response_error(CMD_FAN_STATUS, 0x02);
+                    break;
+                }
                 
-                /* 发送应答 */
-                protocol_send_response_ok(cmd, fan_status_data, sizeof(fan_status_data));
+                /* 获取目标速度数组 */
+                extern const uint8_t* fan_get_target_speed_array(void);
+                const uint8_t *target_speed = fan_get_target_speed_array();
+                
+                /* 获取风扇状态 */
+                uint8_t fan_status_data[28] = {0};
+                extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
+                int data_len = get_fan_status(fan_status_data, sizeof(fan_status_data), target_speed);
+                
+                if (data_len > 0)
+                {
+                    /* 打印调试信息 */
+                    rt_kprintf("[App] Fan status data: ");
+                    for (int i = 0; i < data_len && i < 28; i++)
+                    {
+                        rt_kprintf("%02X ", fan_status_data[i]);
+                        if (i % 2 == 1) rt_kprintf(" ");
+                    }
+                    rt_kprintf("\n");
+                    
+                    /* 发送应答（包含风扇状态数据）*/
+                    protocol_send_response_ok(CMD_FAN_STATUS, fan_status_data, data_len);
+                }
+                else
+                {
+                    /* 数据获取失败 */
+                    protocol_send_response_error(CMD_FAN_STATUS, 0x03);
+                }
             }
             break;
             
@@ -201,20 +222,9 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_HEARTBEAT:
             /* 心跳包 */
             rt_kprintf("[App] Heartbeat received\n");
-            uint8_t read_data[7];
-            read_data[0] = 0xAE;
-            read_data[1] = 0x00;
-            read_data[2] = 0x07;
-            read_data[3] = CMD_HEARTBEAT;
-            read_data[4] = data[0];//幻数，接收到的数据区
-            read_data[5] = protocol_calculate_checksum(read_data, 5);//校验位
-            read_data[6] = 0xFE;
-            protocol_send_response_ok(cmd, read_data, sizeof(read_data));
-            break;
-            
-        case CMD_RESPONSE_OK:
-            /* 收到主板的应答（成功）*/
-            rt_kprintf("[App] Response OK received\n");
+            uint8_t read_data;
+            read_data = data[0];//幻数，接收到的数据区
+            protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
             break;
             
         case CMD_RESPONSE_ERROR:
@@ -260,66 +270,6 @@ INIT_APP_EXPORT(protocol_app_init);
 /* =============== Shell 测试命令 =============== */
 
 /**
- * @brief Shell命令：发送查询状态命令
- */
-static void cmd_query_status(int argc, char **argv)
-{
-    protocol_send_frame(CMD_QUERY_STATUS, RT_NULL, 0);
-    rt_kprintf("Query status command sent\n");
-}
-MSH_CMD_EXPORT_ALIAS(cmd_query_status, proto_query, Send query status command);
-
-/**
- * @brief Shell命令：发送设置模式命令
- */
-static void cmd_set_mode(int argc, char **argv)
-{
-    if (argc >= 2)
-    {
-        uint8_t mode = (uint8_t)atoi(argv[1]);
-        protocol_send_frame(CMD_SET_FAN, &mode, 1);
-        rt_kprintf("Set mode command sent: %d\n", mode);
-    }
-    else
-    {
-        rt_kprintf("Usage: proto_setmode <mode>\n");
-    }
-}
-MSH_CMD_EXPORT_ALIAS(cmd_set_mode, proto_setmode, Send set mode command);
-
-/**
- * @brief Shell命令：发送读取数据命令
- */
-static void CMD_FAN_STATUS(int argc, char **argv)
-{
-    protocol_send_frame(CMD_FAN_STATUS, RT_NULL, 0);
-    rt_kprintf("Read data command sent\n");
-}
-MSH_CMD_EXPORT_ALIAS(CMD_FAN_STATUS, proto_read, Send read data command);
-
-/**
- * @brief Shell命令：发送写入数据命令
- */
-static void cmd_write_data(int argc, char **argv)
-{
-    if (argc >= 2)
-    {
-        uint16_t value = (uint16_t)atoi(argv[1]);
-        uint8_t data[2];
-        data[0] = (value >> 8) & 0xFF;
-        data[1] = value & 0xFF;
-        
-        protocol_send_frame(CMD_COLOR_LIGHT, data, 2);
-        rt_kprintf("Write data command sent: 0x%04X\n", value);
-    }
-    else
-    {
-        rt_kprintf("Usage: proto_write <value>\n");
-    }
-}
-MSH_CMD_EXPORT_ALIAS(cmd_write_data, proto_write, Send write data command);
-
-/**
  * @brief Shell命令：发送心跳包
  */
 static void cmd_heartbeat(int argc, char **argv)
@@ -328,34 +278,6 @@ static void cmd_heartbeat(int argc, char **argv)
     rt_kprintf("Heartbeat command sent\n");
 }
 MSH_CMD_EXPORT_ALIAS(cmd_heartbeat, proto_heart, Send heartbeat command);
-
-/**
- * @brief Shell命令：发送自定义命令
- */
-static void cmd_send_custom(int argc, char **argv)
-{
-    if (argc >= 2)
-    {
-        uint8_t cmd = (uint8_t)strtol(argv[1], NULL, 16);
-        uint8_t data[32];
-        uint16_t data_len = 0;
-        
-        /* 解析数据参数 */
-        for (int i = 2; i < argc && data_len < 32; i++)
-        {
-            data[data_len++] = (uint8_t)strtol(argv[i], NULL, 16);
-        }
-        
-        protocol_send_frame(cmd, data, data_len);
-        rt_kprintf("Custom command sent: CMD=0x%02X, LEN=%d\n", cmd, data_len);
-    }
-    else
-    {
-        rt_kprintf("Usage: proto_custom <cmd_hex> [data1_hex] [data2_hex] ...\n");
-        rt_kprintf("Example: proto_custom A1 01 02 03\n");
-    }
-}
-MSH_CMD_EXPORT_ALIAS(cmd_send_custom, proto_custom, Send custom protocol command);
 
 /**
  * @brief Shell命令：发送进度灯条控制命令

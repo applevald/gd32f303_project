@@ -34,6 +34,18 @@
 #define PWM_PERIOD      4320
 #define PWM_FREQ_KHZ    25
 
+/* 风扇目标速度数组（百分比 0-100），用于状态检测 */
+static uint8_t g_fan_target_speed[14] = {0};  /* 初始化为0 */
+
+/**
+ * @brief  获取风扇目标速度数组
+ * @retval 指向目标速度数组的指针
+ */
+const uint8_t* fan_get_target_speed_array(void)
+{
+    return g_fan_target_speed;
+}
+
 /* 风扇枚举 */
 typedef enum {
     FAN1 = 0,   // PA3  - TIMER1_CH3
@@ -119,12 +131,12 @@ rt_err_t fan_init(void)
     gpio_init(GPIOB, GPIO_MODE_AF_PP, GPIO_OSPEED_50MHZ, GPIO_PIN_14); // FAN11 - TIMER0_CH1N
 
     /* 初始化硬件PWM, 默认100%占空比(全速) */
-    timer_pwm_config(TIMER2, TIMER_CH_0, PWM_PERIOD, 0);  // FAN3 (普通)
-    timer_pwm_config(TIMER2, TIMER_CH_3, PWM_PERIOD, 0);  // FAN7 (普通)
-    timer_pwm_config(TIMER1, TIMER_CH_3, PWM_PERIOD, 0);  // FAN1 (普通)
+    timer_pwm_config(TIMER2, TIMER_CH_0, 0, 0);  // FAN3 (普通)
+    timer_pwm_config(TIMER2, TIMER_CH_3, 0, 0);  // FAN7 (普通)
+    timer_pwm_config(TIMER1, TIMER_CH_3, 0, 0);  // FAN1 (普通)
     
     /* FAN11: TIMER0 channel 1, 使用互补输出(N) */
-    timer_pwm_config(TIMER0, TIMER_CH_1, PWM_PERIOD, 1);  // FAN11 (互补输出)
+    timer_pwm_config(TIMER0, TIMER_CH_1, 0, 1);  // FAN11 (互补输出)
 
     rt_kprintf("[FAN] PWM initialized: %d kHz (NO REMAP)\n", PWM_FREQ_KHZ);
     rt_kprintf("[FAN] PA3(T1_CH3), PA6(T2_CH0), PB1(T2_CH3), PB14(T0_CH1N)\n");
@@ -144,18 +156,33 @@ void fan_set_speed(fan_id_t fan, uint8_t percent)
         case FAN1:
             timer_channel_output_pulse_value_config(TIMER1, TIMER_CH_3, pulse);
             rt_kprintf("[FAN1] Speed=%d%%, Pulse=%d/%d\n", percent, pulse, PWM_PERIOD);
+            /* 更新目标速度：FAN1和FAN2共用同一个PWM */
+            g_fan_target_speed[0] = percent;  /* FAN1 */
+            g_fan_target_speed[1] = percent;  /* FAN2 */
             break;
         case FAN3:
             timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_0, pulse);
             rt_kprintf("[FAN3] Speed=%d%%, Pulse=%d/%d\n", percent, pulse, PWM_PERIOD);
+            /* 更新目标速度：FAN3-FAN6共用同一个PWM */
+            for (int i = 2; i <= 5; i++) {
+                g_fan_target_speed[i] = percent;
+            }
             break;
         case FAN7:
             timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, pulse);
             rt_kprintf("[FAN7] Speed=%d%%, Pulse=%d/%d\n", percent, pulse, PWM_PERIOD);
+            /* 更新目标速度：FAN7-FAN10共用同一个PWM */
+            for (int i = 6; i <= 9; i++) {
+                g_fan_target_speed[i] = percent;
+            }
             break;
         case FAN11:
             timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, pulse);
             rt_kprintf("[FAN11] Speed=%d%%, Pulse=%d/%d\n", percent, pulse, PWM_PERIOD);
+            /* 更新目标速度：FAN11-FAN14共用同一个PWM */
+            for (int i = 10; i <= 13; i++) {
+                g_fan_target_speed[i] = percent;
+            }
             break;
         default:
             break;

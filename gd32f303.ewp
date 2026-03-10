@@ -2318,6 +2318,12 @@
             <name>$PROJ_DIR$\mainapp\protocol_app.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\mainapp\temp_measure.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\temp_measure.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\mainapp\usart_Communication.c</name>
         </file>
         <file>

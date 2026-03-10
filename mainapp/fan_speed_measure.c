@@ -244,6 +244,95 @@ uint16_t get_fan_rpm(uint8_t fan_id)
 }
 
 /**
+ * @brief  获取风扇状态数据（按协议格式）
+ * @param  data: 输出缓冲区（至少28字节）
+ * @param  len: 缓冲区长度
+ * @param  fan_target_speed: 风扇目标速度数组（百分比 0-100，14个元素）
+ * @retval 实际填充的字节数
+ * 
+ * @note   状态码定义：
+ *         0x00: 风扇正常
+ *         0x01: 风扇堵转（设置了速度但转速为0）
+ *         0x02: 转速过慢（实际转速 < 目标转速的70%）
+ *         0x03: 异常转动（未设置速度但有转速）
+ */
+int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
+{
+    if (data == RT_NULL || len < 28 || fan_target_speed == RT_NULL)
+    {
+        return 0;
+    }
+    
+    rt_memset(data, 0, len);
+    
+    /* 填充风扇状态数据 */
+    for (int i = 0; i < FAN_COUNT; i++)
+    {
+        uint8_t fan_id = i + 1;
+        uint16_t rpm = g_fan_fg[i].rpm;
+        uint8_t target_speed = fan_target_speed[i];  /* 目标速度百分比 */
+        uint8_t status = 0x00;  /* 默认正常 */
+        uint16_t rated_rpm;
+        
+        /* 根据风扇ID确定额定转速 */
+        if (fan_id <= 2)
+        {
+            /* FAN1和FAN2: 9000 RPM */
+            rated_rpm = 9000;
+        }
+        else
+        {
+            /* FAN3-FAN14: 5000 RPM */
+            rated_rpm = 5000;
+        }
+        
+        /* 计算目标转速 */
+        uint16_t target_rpm = (rated_rpm * target_speed) / 100;
+        
+        /* 判断风扇状态 */
+        if (target_speed > 0)
+        {
+            /* 设置了速度 */
+            if (rpm == 0)
+            {
+                /* 堵转：设置了速度但转速为0 */
+                status = 0x01;
+            }
+            else if (rpm < (target_rpm * 70 / 100))
+            {
+                /* 转速过慢：实际转速 < 目标转速的70% */
+                status = 0x02;
+            }
+            else
+            {
+                /* 正常 */
+                status = 0x00;
+            }
+        }
+        else
+        {
+            /* 未设置速度 */
+            if (rpm > 0)
+            {
+                /* 异常转动：未设置速度但有转速 */
+                status = 0x03;
+            }
+            else
+            {
+                /* 正常（未设置速度且无转速）*/
+                status = 0x00;
+            }
+        }
+        
+        /* 按协议格式填充：ID(高字节) + 状态(低字节) */
+        data[i * 2] = fan_id;
+        data[i * 2 + 1] = status;
+    }
+    
+    return 28;
+}
+
+/**
  * @brief  风扇转速测量模块初始化
  */
 int fan_speed_measure_init(void)

@@ -14,6 +14,7 @@ extern void system_clock_108m_config(void); /* 添加时钟配置声明 */
 extern rt_err_t fan_init(void); /* 添加风扇初始化声明 */
 extern void fan_test(void); /* 添加风扇测试声明 */
 extern int fan_speed_measure_init(void); /* 添加风扇测速初始化声明 */
+extern int temp_measure_init(void); /* 添加温度测量初始化声明 */
 
 int main(void)
 {
@@ -45,6 +46,7 @@ int main(void)
     // ws2811_test_flow();//test，以上电就亮绿灯，后续可以删除
     fan_init(); //风扇初始化
     fan_speed_measure_init(); //风扇测速初始化
+    temp_measure_init(); //温度测量初始化
     
     while (1)
     {
