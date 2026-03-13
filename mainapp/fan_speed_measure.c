@@ -4,7 +4,8 @@
  * 
  * 测量原理：
  *   - FG信号：每转2个脉冲
- *   - 使用定时器捕获FG引脚的脉冲
+ *   - 使用GPIO轮询方式检测脉冲边沿
+ *   - 后台线程持续测量，每100ms更新一次转速
  *   - 计算公式：RPM = (脉冲数 / 2) * 60 / 测量时间(秒)
  */
 
@@ -14,169 +15,172 @@
 /* 风扇FG引脚定义 */
 #define FAN_COUNT   14
 
+/* 测量参数配置 */
+/* 系统时钟: 108MHz, APB1 = 54MHz, TIMER3_CLK = 108MHz (APB1×2) */
+#define TIMER_PRESCALER         107         /* 108MHz / 108 = 1MHz计数频率 (1us分辨率) */
+#define TIMER_PERIOD            99          /* 100us 中断一次 (10kHz采样率) */
+#define FAN_TIMEOUT_TICKS       20000       /* 2秒无脉冲视为停止(20000 * 100us) */
+#define RPM_CALC_CONST          300000      /* RPM = 300,000 / period_ticks (100us单位, 2脉冲/转) */
+
 typedef struct {
     uint32_t gpio_periph;   /* GPIO外设 */
     uint32_t pin;           /* GPIO引脚 */
-    uint16_t rpm;           /* 当前转速(RPM) */
-    uint32_t pulse_count;   /* 脉冲计数 */
+    volatile uint32_t last_edge_tick; /* 上次下降沿的时间戳(100us单位) */
+    volatile uint32_t period_ticks;   /* 脉冲周期(100us单位) */
     uint8_t last_state;     /* 上次引脚状态 */
+    volatile uint16_t rpm;  /* 缓存的RPM值 */
 } fan_fg_t;
+
+/* 全局时间戳计数器 (100us单位) */
+static volatile uint32_t g_timer_tick = 0;
 
 /* 风扇FG引脚配置表 */
 static fan_fg_t g_fan_fg[FAN_COUNT] = {
-    {GPIOA, GPIO_PIN_5,  0, 0, 0},  /* FAN1  - PA5  */
-    {GPIOA, GPIO_PIN_4,  0, 0, 0},  /* FAN2  - PA4  */
-    {GPIOA, GPIO_PIN_7,  0, 0, 0},  /* FAN3  - PA7  */
-    {GPIOC, GPIO_PIN_4,  0, 0, 0},  /* FAN4  - PC4  */
-    {GPIOC, GPIO_PIN_5,  0, 0, 0},  /* FAN5  - PC5  */
-    {GPIOB, GPIO_PIN_0,  0, 0, 0},  /* FAN6  - PB0  */
-    {GPIOB, GPIO_PIN_10, 0, 0, 0},  /* FAN7  - PB10 */
-    {GPIOB, GPIO_PIN_11, 0, 0, 0},  /* FAN8  - PB11 */
-    {GPIOB, GPIO_PIN_12, 0, 0, 0},  /* FAN9  - PB12 */
-    {GPIOB, GPIO_PIN_13, 0, 0, 0},  /* FAN10 - PB13 */
-    {GPIOB, GPIO_PIN_15, 0, 0, 0},  /* FAN11 - PB15 */
-    {GPIOC, GPIO_PIN_6,  0, 0, 0},  /* FAN12 - PC6  */
-    {GPIOC, GPIO_PIN_7,  0, 0, 0},  /* FAN13 - PC7  */
-    {GPIOC, GPIO_PIN_8,  0, 0, 0},  /* FAN14 - PC8  */
+    {GPIOA, GPIO_PIN_5,  0, 0, 0, 0},  /* FAN1  - PA5  */
+    {GPIOA, GPIO_PIN_4,  0, 0, 0, 0},  /* FAN2  - PA4  */
+    {GPIOA, GPIO_PIN_7,  0, 0, 0, 0},  /* FAN3  - PA7  */
+    {GPIOC, GPIO_PIN_4,  0, 0, 0, 0},  /* FAN4  - PC4  */
+    {GPIOC, GPIO_PIN_5,  0, 0, 0, 0},  /* FAN5  - PC5  */
+    {GPIOB, GPIO_PIN_0,  0, 0, 0, 0},  /* FAN6  - PB0  */
+    {GPIOB, GPIO_PIN_10, 0, 0, 0, 0},  /* FAN7  - PB10 */
+    {GPIOB, GPIO_PIN_11, 0, 0, 0, 0},  /* FAN8  - PB11 */
+    {GPIOB, GPIO_PIN_12, 0, 0, 0, 0},  /* FAN9  - PB12 */
+    {GPIOB, GPIO_PIN_13, 0, 0, 0, 0},  /* FAN10 - PB13 */
+    {GPIOB, GPIO_PIN_15, 0, 0, 0, 0},  /* FAN11 - PB15 */
+    {GPIOC, GPIO_PIN_6,  0, 0, 0, 0},  /* FAN12 - PC6  */
+    {GPIOC, GPIO_PIN_7,  0, 0, 0, 0},  /* FAN13 - PC7  */
+    {GPIOC, GPIO_PIN_8,  0, 0, 0, 0},  /* FAN14 - PC8  */
 };
 
-/* 测量线程 */
-static rt_thread_t measure_thread = RT_NULL;
-static rt_bool_t is_measuring = RT_FALSE;  /* 测量状态标志 */
-static rt_sem_t measure_done_sem = RT_NULL;  /* 测量完成信号量 */
-
 /**
- * @brief  初始化风扇FG引脚
+ * @brief  初始化风扇FG引脚和定时器
  */
-static void fan_fg_gpio_init(void)
+static void fan_fg_hardware_init(void)
 {
-    /* 使能GPIO时钟 */
+    /* 1. GPIO 初始化 */
     rcu_periph_clock_enable(RCU_GPIOA);
     rcu_periph_clock_enable(RCU_GPIOB);
     rcu_periph_clock_enable(RCU_GPIOC);
     
-    /* 配置所有FG引脚为输入上拉 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
         gpio_init(g_fan_fg[i].gpio_periph, GPIO_MODE_IPU, GPIO_OSPEED_50MHZ, g_fan_fg[i].pin);
         g_fan_fg[i].last_state = gpio_input_bit_get(g_fan_fg[i].gpio_periph, g_fan_fg[i].pin);
     }
     
-    rt_kprintf("[FanSpeed] FG pins initialized\n");
+    /* 2. 定时器 初始化 (TIMER3) - 100us中断 */
+    rcu_periph_clock_enable(RCU_TIMER3);
+    timer_deinit(TIMER3);
+    
+    timer_parameter_struct timer_initpara;
+    timer_struct_para_init(&timer_initpara);
+    timer_initpara.prescaler         = TIMER_PRESCALER;
+    timer_initpara.alignedmode       = TIMER_COUNTER_EDGE;
+    timer_initpara.counterdirection  = TIMER_COUNTER_UP;
+    timer_initpara.period            = TIMER_PERIOD;
+    timer_initpara.clockdivision     = TIMER_CKDIV_DIV1;
+    timer_initpara.repetitioncounter = 0;
+    timer_init(TIMER3, &timer_initpara);
+
+    /* 清除更新中断标志并使能中断 */
+    timer_interrupt_flag_clear(TIMER3, TIMER_INT_UP);
+    timer_interrupt_enable(TIMER3, TIMER_INT_UP);
+    
+    /* 配置NVIC中断优先级 */
+    nvic_irq_enable(TIMER3_IRQn, 1, 0); // 较高优先级
+    
+    /* 使能定时器 */
+    timer_enable(TIMER3);
+    
+    rt_kprintf("[FanSpeed] Hardware initialized (Timer3 @ 10kHz)\n");
 }
 
 /**
- * @brief  读取FG引脚状态并计数脉冲
+ * @brief  TIMER3 中断服务函数 - 100us周期执行
+ * @note   负责采样引脚状态并计算脉冲间隔
  */
-static void fan_fg_pulse_count(void)
+void TIMER3_IRQHandler(void)
 {
-    for (int i = 0; i < FAN_COUNT; i++)
+    if (timer_interrupt_flag_get(TIMER3, TIMER_INT_UP) != RESET)
     {
-        uint8_t current_state = gpio_input_bit_get(g_fan_fg[i].gpio_periph, g_fan_fg[i].pin);
+        timer_interrupt_flag_clear(TIMER3, TIMER_INT_UP);
+        g_timer_tick++;
         
-        /* 检测下降沿（从高到低） */
-        if (g_fan_fg[i].last_state == SET && current_state == RESET)
-        {
-            g_fan_fg[i].pulse_count++;
-        }
-        
-        g_fan_fg[i].last_state = current_state;
-    }
-}
-
-/**
- * @brief  风扇转速测量线程
- * @param  parameter: 线程参数
- * @note   触发后测量1秒，然后自动停止，释放CPU
- */
-static void fan_speed_measure_entry(void *parameter)
-{
-    while (1)
-    {
-        /* 等待测量启动信号 */
-        if (!is_measuring)
-        {
-            rt_thread_mdelay(100);  /* 空闲时休眠 */
-            continue;
-        }
-        
-        rt_kprintf("[FanSpeed] Starting measurement...\n");
-        
-        /* 清零脉冲计数 */
+        /* 遍历所有风扇引脚进行采样 */
         for (int i = 0; i < FAN_COUNT; i++)
         {
-            g_fan_fg[i].pulse_count = 0;
-        }
-        
-        rt_uint32_t sample_count = 0;
-        const rt_uint32_t sample_interval_ms = 1;   /* 采样间隔1ms (提高采样率) */
-        const rt_uint32_t calc_interval = 1000;     /* 1000次采样后计算(1秒) */
-        
-        /* 测量1秒 */
-        while (sample_count < calc_interval && is_measuring)
-        {
-            /* 脉冲计数 */
-            fan_fg_pulse_count();
+            /* 读取当前引脚电平 (宏展开优化) */
+            uint8_t current_state = gpio_input_bit_get(g_fan_fg[i].gpio_periph, g_fan_fg[i].pin);
             
-            sample_count++;
-            rt_thread_mdelay(sample_interval_ms);
-        }
-        
-        /* 计算转速 */
-        for (int i = 0; i < FAN_COUNT; i++)
-        {
-            /* 计算RPM: (脉冲数/2) * 60 / 测量时间(秒) */
-            rt_uint32_t pulse = g_fan_fg[i].pulse_count;
-            g_fan_fg[i].rpm = (pulse * 60) / 2;  /* 1秒内的脉冲数/2 * 60 = 转速 */
-        }
-        
-        rt_kprintf("[FanSpeed] Measurement completed\n");
-        
-        /* 停止测量 */
-        is_measuring = RT_FALSE;
-        
-        /* 释放信号量，通知测量完成 */
-        if (measure_done_sem != RT_NULL)
-        {
-            rt_sem_release(measure_done_sem);
+            /* 检测下降沿 (1 -> 0) */
+            if (g_fan_fg[i].last_state == SET && current_state == RESET)
+            {
+                uint32_t current_tick = g_timer_tick;
+                uint32_t last_tick = g_fan_fg[i].last_edge_tick;
+                
+                /* 计算周期并更新时间戳 */
+                if (current_tick > last_tick)
+                {
+                    g_fan_fg[i].period_ticks = current_tick - last_tick;
+                }
+                else
+                {
+                    /* 处理溢出回绕情况 (32位tick很久才会溢出) */
+                     g_fan_fg[i].period_ticks = (0xFFFFFFFF - last_tick) + current_tick + 1;
+                }
+                
+                g_fan_fg[i].last_edge_tick = current_tick;
+            }
+            
+            g_fan_fg[i].last_state = current_state;
         }
     }
 }
 
 /**
- * @brief  启动风扇转速测量（阻塞等待完成）
- * @retval RT_EOK: 成功, -RT_ERROR: 失败
- * @note   此函数会阻塞约1秒，等待测量完成
+ * @brief  启动风扇转速测量（兼容旧接口，实际上由硬件定时器驱动）
  */
 rt_err_t start_fan_speed_measure(void)
 {
-    /* 检查是否正在测量 */
-    if (is_measuring)
-    {
-        rt_kprintf("[FanSpeed] Already measuring, please wait...\n");
-        /* 等待当前测量完成 */
-        if (measure_done_sem != RT_NULL)
-        {
-            rt_sem_take(measure_done_sem, rt_tick_from_millisecond(2000));
-        }
-    }
-    
-    /* 启动测量 */
-    is_measuring = RT_TRUE;
-    
-    /* 等待测量完成（最多等待2秒）*/
-    if (measure_done_sem != RT_NULL)
-    {
-        rt_err_t ret = rt_sem_take(measure_done_sem, rt_tick_from_millisecond(2000));
-        if (ret != RT_EOK)
-        {
-            rt_kprintf("[FanSpeed] Measurement timeout!\n");
-            is_measuring = RT_FALSE;
-            return -RT_ERROR;
-        }
-    }
-    
     return RT_EOK;
+}
+
+
+/**
+ * @brief  计算并更新指定风扇的RPM
+ */
+static void update_fan_rpm(int i)
+{
+    uint32_t current_tick = g_timer_tick;
+    uint32_t last_tick = g_fan_fg[i].last_edge_tick;
+    uint32_t elapsed;
+    
+    /* 处理 tick 计数器溢出回绕 */
+    if (current_tick >= last_tick)
+    {
+        elapsed = current_tick - last_tick;
+    }
+    else
+    {
+        elapsed = (0xFFFFFFFF - last_tick) + current_tick + 1;
+    }
+    
+    /* 判定超时：如果超过2秒没有脉冲，认为风扇已停转 */
+    if (elapsed > FAN_TIMEOUT_TICKS)
+    {
+        g_fan_fg[i].rpm = 0;
+    }
+    else if (g_fan_fg[i].period_ticks > 0)
+    {
+        /* RPM = 常数 / 周期tick数 */
+        /* CONST = 300,000 (100us单位) */
+        uint32_t rpm = RPM_CALC_CONST / g_fan_fg[i].period_ticks;
+        
+        // /* 简单滤波或限幅 */
+        // if (rpm > 20000) rpm = 0; /* 过滤异常大值 */
+        
+        g_fan_fg[i].rpm = (uint16_t)rpm;
+    }
 }
 
 /**
@@ -184,13 +188,6 @@ rt_err_t start_fan_speed_measure(void)
  * @param  data: 输出缓冲区（至少28字节）
  * @param  len: 缓冲区长度
  * @retval 实际填充的字节数
- * 
- * @note   协议格式：
- *         每个风扇占2字节(高字节+低字节)
- *         数据格式：ID(高字节) + 转速(低字节)
- *         转速编码：0x01转速=1%, 0x64转速=100%
- *         
- *         例如：0x01 0x64 表示ID1转速100%
  */
 int get_fan_speed(uint8_t *data, uint16_t len)
 {
@@ -204,20 +201,31 @@ int get_fan_speed(uint8_t *data, uint16_t len)
     /* 填充风扇转速数据 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
+        /* 先更新RPM */
+        update_fan_rpm(i);
+        
         uint8_t fan_id = i + 1;  /* 风扇ID: 1-14 */
         uint16_t rpm = g_fan_fg[i].rpm;
         uint8_t speed_percent;
         
-        /* 根据风扇ID计算转速百分比 */
+        /* 根据风扇ID计算转速百分比（浮点运算提高精度）*/
         if (fan_id <= 2)
         {
             /* FAN1和FAN2: 9000 RPM */
-            speed_percent = (rpm > 9000) ? 100 : (rpm * 100 / 9000);
+            if (rpm > 9000) {
+                speed_percent = 100;
+            } else {
+                speed_percent = (uint8_t)((rpm * 100.0f + 0.5f) / 9000.0f);
+            }
         }
         else
         {
             /* FAN3-FAN14: 5000 RPM */
-            speed_percent = (rpm > 5000) ? 100 : (rpm * 100 / 5000);
+            if (rpm > 5000) {
+                speed_percent = 100;
+            } else {
+                speed_percent = (uint8_t)((rpm * 100.0f + 0.5f) / 5000.0f);
+            }
         }
         
         /* 按协议格式填充：ID(高字节) + 转速%(低字节) */
@@ -240,7 +248,10 @@ uint16_t get_fan_rpm(uint8_t fan_id)
         return 0;
     }
     
-    return g_fan_fg[fan_id - 1].rpm;
+    int idx = fan_id - 1;
+    update_fan_rpm(idx);
+    
+    return g_fan_fg[idx].rpm;
 }
 
 /**
@@ -249,12 +260,6 @@ uint16_t get_fan_rpm(uint8_t fan_id)
  * @param  len: 缓冲区长度
  * @param  fan_target_speed: 风扇目标速度数组（百分比 0-100，14个元素）
  * @retval 实际填充的字节数
- * 
- * @note   状态码定义：
- *         0x00: 风扇正常
- *         0x01: 风扇堵转（设置了速度但转速为0）
- *         0x02: 转速过慢（实际转速 < 目标转速的70%）
- *         0x03: 异常转动（未设置速度但有转速）
  */
 int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
 {
@@ -268,6 +273,9 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
     /* 填充风扇状态数据 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
+        /* 更新转速 */
+        update_fan_rpm(i);
+        
         uint8_t fan_id = i + 1;
         uint16_t rpm = g_fan_fg[i].rpm;
         uint8_t target_speed = fan_target_speed[i];  /* 目标速度百分比 */
@@ -277,12 +285,10 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
         /* 根据风扇ID确定额定转速 */
         if (fan_id <= 2)
         {
-            /* FAN1和FAN2: 9000 RPM */
             rated_rpm = 9000;
         }
         else
         {
-            /* FAN3-FAN14: 5000 RPM */
             rated_rpm = 5000;
         }
         
@@ -337,40 +343,14 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
  */
 int fan_speed_measure_init(void)
 {
-    rt_kprintf("[FanSpeed] Initializing fan speed measurement...\n");
+    rt_kprintf("[FanSpeed] Initializing fan speed measurement (Timer3 Interrupt)...\n");
     
-    /* 初始化FG引脚 */
-    fan_fg_gpio_init();
+    /* 初始化硬件（GPIO + Timer3） */
+    fan_fg_hardware_init();
     
-    /* 创建信号量 */
-    measure_done_sem = rt_sem_create("fan_done", 0, RT_IPC_FLAG_FIFO);
-    if (measure_done_sem == RT_NULL)
-    {
-        rt_kprintf("[FanSpeed] ERROR: Failed to create semaphore\n");
-        return -RT_ERROR;
-    }
-    
-    /* 创建测量线程（优先级较低，避免占用CPU）*/
-    measure_thread = rt_thread_create("fan_meas",
-                                     fan_speed_measure_entry,
-                                     RT_NULL,
-                                     2048,
-                                     20,  /* 降低优先级 */
-                                     10);
-    if (measure_thread != RT_NULL)
-    {
-        rt_thread_startup(measure_thread);
-        rt_kprintf("[FanSpeed] Measurement thread created (idle state)\n");
-    }
-    else
-    {
-        rt_kprintf("[FanSpeed] ERROR: Failed to create thread\n");
-        return -RT_ERROR;
-    }
-    
-    rt_kprintf("[FanSpeed] Module initialized successfully\n");
+    rt_kprintf("[FanSpeed] Module initialized successfully (Interrupt mode)\n");
     return RT_EOK;
 }
 
 /* 自动初始化 */
-// INIT_APP_EXPORT(fan_speed_measure_init);
+INIT_APP_EXPORT(fan_speed_measure_init);
