@@ -32,13 +32,15 @@
 #define PROTOCOL_MAX_DATA_LEN   (PROTOCOL_MAX_FRAME_LEN - PROTOCOL_MIN_FRAME_LEN)
 
 /* 命令码定义（0xAx格式）*/
-#define CMD_SET_FAN            0xA1    /* 设置风扇速度 */
-#define CMD_FAN_GETSPEED        0xA2    /* 获取风扇的速度 */
-#define CMD_FAN_STATUS           0xA3    /* 读取风扇状态*/
-#define CMD_COLOR_LIGHT          0xA4    /* 三色灯控制 */
-#define CMD_LIGHT_BAR           0xA5    /* 灯条控制 */
-#define CMD_ALL_STATUS           0xA6    /* 读取所有状态 */
 #define CMD_HEARTBEAT           0xA0    /* 心跳包 */
+#define CMD_SET_FAN             0xA1    /* 设置风扇速度 */
+#define CMD_FAN_GETSPEED        0xA2    /* 获取风扇的速度 */
+#define CMD_FAN_STATUS          0xA3    /* 读取风扇状态*/
+#define CMD_COLOR_LIGHT         0xA4    /* 三色灯控制 */
+#define CMD_LIGHT_BAR           0xA5    /* 灯条控制 */
+#define CMD_ALL_STATUS          0xA6    /* 读取所有状态 */
+#define CMD_TEMP_SET            0xA7    /* 设置目标温度 */
+#define CMD_WINDOWS_CONTROL     0xA8    /* 天窗控制 */
 #define CMD_RESPONSE_ERROR      0xAE    /* 应答失败 */
 
 /* 协议帧结构体 */

@@ -40,6 +40,13 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
     switch (cmd)
     {
             
+        case CMD_HEARTBEAT:
+            /* 心跳包 */
+            rt_kprintf("[App] Heartbeat received\n");
+            uint8_t read_data;
+            read_data = data[0];//幻数，接收到的数据区
+            protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
+        break;
         case CMD_SET_FAN:
             /* 设置风扇速度命令 */
             if (len >= 2)
@@ -250,14 +257,65 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
 
             break;
 
-        case CMD_HEARTBEAT:
-            /* 心跳包 */
-            rt_kprintf("[App] Heartbeat received\n");
-            uint8_t read_data;
-            read_data = data[0];//幻数，接收到的数据区
-            protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
+        case CMD_TEMP_SET:
+            extern uint8_t set_goal_temp(uint32_t temp);
+            uint8_t temp_value = data[0];
+            uint8_t result = set_goal_temp(temp_value);
+            if(result == 0){
+                protocol_send_response_ok(CMD_TEMP_SET, &result, 1);
+            }else if(result == 1){
+                protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
+            }else if(result == 2){
+                protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
+            }
             break;
-            
+        
+        case CMD_WINDOWS_CONTROL:
+            /* 天窗控制命令 */
+            {
+                uint8_t control_value = 0;
+                
+                if (len >= 1)
+                {
+                    if (data[0] == 0x00)
+                    {
+                        /* 关闭天窗 */
+                        rt_kprintf("[App] Window close command\n");
+                        extern rt_err_t window_close(void);
+                        window_close();
+                    }
+                    else if (data[0] == 0x01)
+                    {
+                        /* 打开天窗 */
+                        rt_kprintf("[App] Window open command\n");
+                        extern rt_err_t window_open(void);
+                        window_open();
+                    }
+                    else if (data[0] == 0x02)
+                    {
+                        /* 查询状态 */
+                        rt_kprintf("[App] Window status query\n");
+                    }
+                    else
+                    {
+                        /* 未知命令 */
+                        rt_kprintf("[App] Unknown window command: 0x%02X\n", data[0]);
+                        protocol_send_response_error(cmd, 0x01);
+                        break;
+                    }
+                    
+                    /* 获取天窗协议状态 */
+                    extern uint8_t window_get_protocol_status(void);
+                    control_value = window_get_protocol_status();
+                    
+                    rt_kprintf("[App] Window status: %d\n", control_value);
+                    
+                    /* 发送成功应答 */
+                    protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
+                }
+            }
+            break;
+
         case CMD_RESPONSE_ERROR:
             /* 收到主板的应答（失败）*/
             if (len >= 1)

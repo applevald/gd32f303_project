@@ -2997,6 +2997,12 @@
         <file>
             <name>$PROJ_DIR$\mainapp\usart_Communication.h</name>
         </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\windows.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\mainapp\windows.h</name>
+        </file>
     </group>
     <group>
         <name>os</name>
