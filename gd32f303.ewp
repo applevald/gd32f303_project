@@ -782,7 +782,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$TOOLKIT_DIR$\config\linker\GD\GD32F303xC.icf</state>
+                    <state>D:\Users\admin\Desktop\new_file\gd32f303_project\gd32f303_project\gd32f303.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>

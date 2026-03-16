@@ -347,7 +347,16 @@ int protocol_init(protocol_cmd_handler_t handler)
     g_cmd_handler = handler;
     rx_index = 0;
     
-    /* 启动接收线程 */
+    /* 关键修复：必须先初始化串口和 rx_sem，再启动接收线程 */
+    /* proto_rx 线程会立即执行 rt_sem_take(&rx_sem)，            */
+    /* 如果 rx_sem 尚未 init，将触发断言失败并破坏系统内存状态   */
+    if (usart_communication_init() != RT_EOK)
+    {
+        rt_kprintf("[Protocol] Error: USART init failed\n");
+        return -RT_ERROR;
+    }
+    
+    /* rx_sem 已在 usart_communication_init() 内部初始化完毕，可以安全启动线程 */
     protocol_start_receive();
     
     rt_kprintf("[Protocol] Initialized\n");

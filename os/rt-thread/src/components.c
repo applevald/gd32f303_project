@@ -108,6 +108,8 @@ void rt_components_board_init(void)
  */
 void rt_components_init(void)
 {
+    // rt_kprintf("[DEBUG] rt_components_init() called\n");
+    
 #if RT_DEBUG_INIT
     int result;
     const struct rt_init_desc *desc;
@@ -207,10 +209,14 @@ void rt_application_init(void)
 {
     rt_thread_t tid;
 
+    // rt_kprintf("[DEBUG] rt_application_init() called\n");
+
 #ifdef RT_USING_HEAP
+    // rt_kprintf("[DEBUG] Creating main thread with priority %d\n", RT_MAIN_THREAD_PRIORITY);
     tid = rt_thread_create("main", main_thread_entry, RT_NULL,
                            RT_MAIN_THREAD_STACK_SIZE, RT_MAIN_THREAD_PRIORITY, 20);
     RT_ASSERT(tid != RT_NULL);
+    // rt_kprintf("[DEBUG] Main thread created successfully\n");
 #else
     rt_err_t result;
 
@@ -232,20 +238,27 @@ void rt_application_init(void)
  */
 int rtthread_startup(void)
 {
+    // rt_kprintf("[DEBUG] rtthread_startup() begin\n");
+    
     rt_hw_interrupt_disable();
 
     /* board level initialization
      * NOTE: please initialize heap inside board initialization.
      */
+    // rt_kprintf("[DEBUG] Calling rt_hw_board_init()\n");
     rt_hw_board_init();
+    // rt_kprintf("[DEBUG] rt_hw_board_init() completed\n");
 
     /* show RT-Thread version */
     rt_show_version();
+    // rt_kprintf("[DEBUG] Version shown\n");
 
     /* timer system initialization */
+    // rt_kprintf("[DEBUG] Calling rt_system_timer_init()\n");
     rt_system_timer_init();
 
     /* scheduler system initialization */
+    // rt_kprintf("[DEBUG] Calling rt_system_scheduler_init()\n");
     rt_system_scheduler_init();
 
 #ifdef RT_USING_SIGNALS
@@ -254,13 +267,18 @@ int rtthread_startup(void)
 #endif /* RT_USING_SIGNALS */
 
     /* create init_thread */
+    // rt_kprintf("[DEBUG] Calling rt_application_init()\n");
     rt_application_init();
+    // rt_kprintf("[DEBUG] rt_application_init() completed\n");
 
     /* timer thread initialization */
+    // rt_kprintf("[DEBUG] Calling rt_system_timer_thread_init()\n");
     rt_system_timer_thread_init();
 
     /* idle thread initialization */
+    // rt_kprintf("[DEBUG] Calling rt_thread_idle_init()\n");
     rt_thread_idle_init();
+    // rt_kprintf("[DEBUG] rt_thread_idle_init() completed\n");
 
 #ifdef RT_USING_SMP
     rt_hw_spin_lock(&_cpus_lock);

@@ -163,7 +163,12 @@ static rt_err_t _thread_init(struct rt_thread *thread,
                              rt_uint8_t        priority,
                              rt_uint32_t       tick)
 {
+    rt_kprintf("[_thread_init] Start: thread=0x%08X, name=%s\n", (uint32_t)thread, name ? name : "(NULL)");
+    rt_kprintf("[_thread_init] entry=0x%08X, stack_start=0x%08X, stack_size=%d\n", 
+               (uint32_t)entry, (uint32_t)stack_start, stack_size);
+    
     /* init thread list */
+    rt_kprintf("[_thread_init] Calling rt_list_init()\n");
     rt_list_init(&(thread->tlist));
 
     thread->entry = (void *)entry;
@@ -174,18 +179,34 @@ static rt_err_t _thread_init(struct rt_thread *thread,
     thread->stack_size = stack_size;
 
     /* init thread stack */
+    rt_kprintf("[_thread_init] Calling rt_memset(0x%08X, '#', %d)\n", 
+               (uint32_t)thread->stack_addr, thread->stack_size);
+    uint32_t msp_before, msp_after;
+    __asm volatile ("MRS %0, MSP" : "=r" (msp_before));
+    rt_kprintf("[_thread_init] MSP before memset = 0x%08X\n", msp_before);
     rt_memset(thread->stack_addr, '#', thread->stack_size);
+    __asm volatile ("MRS %0, MSP" : "=r" (msp_after));
+    rt_kprintf("[_thread_init] MSP after memset = 0x%08X\n", msp_after);
+    rt_kprintf("[_thread_init] rt_memset() completed\n");
+    
 #ifdef ARCH_CPU_STACK_GROWS_UPWARD
+    // rt_kprintf("[_thread_init] Calling rt_hw_stack_init() - stack grows upward\n");
     thread->sp = (void *)rt_hw_stack_init(thread->entry, thread->parameter,
                                           (void *)((char *)thread->stack_addr),
                                           (void *)_thread_exit);
 #else
+    // rt_kprintf("[_thread_init] Calling rt_hw_stack_init() - stack grows downward\n");
     thread->sp = (void *)rt_hw_stack_init(thread->entry, thread->parameter,
                                           (rt_uint8_t *)((char *)thread->stack_addr + thread->stack_size - sizeof(rt_ubase_t)),
                                           (void *)_thread_exit);
 #endif /* ARCH_CPU_STACK_GROWS_UPWARD */
+    // rt_kprintf("[_thread_init] rt_hw_stack_init() returned sp=0x%08X\n", (uint32_t)thread->sp);
 
     /* priority init */
+    if (priority >= RT_THREAD_PRIORITY_MAX) {
+        rt_kprintf("[FATAL] Thread '%s' priority %d >= MAX %d\n", 
+                   name ? name : "NULL", priority, RT_THREAD_PRIORITY_MAX);
+    }
     RT_ASSERT(priority < RT_THREAD_PRIORITY_MAX);
     thread->current_priority = priority;
 
@@ -460,12 +481,20 @@ rt_thread_t rt_thread_create(const char *name,
     struct rt_thread *thread;
     void *stack_start;
 
+    // rt_kprintf("[DEBUG] rt_thread_create('%s') called\n", name ? name : "(NULL)");
+    // rt_kprintf("[DEBUG] entry=0x%08X, stack_size=%d, priority=%d, tick=%d\n", 
+    //            (uint32_t)entry, stack_size, priority, tick);
+
+    // rt_kprintf("[DEBUG] Calling rt_object_allocate()\n");
     thread = (struct rt_thread *)rt_object_allocate(RT_Object_Class_Thread,
                                                     name);
+    // rt_kprintf("[DEBUG] rt_object_allocate() returned 0x%08X\n", (uint32_t)thread);
     if (thread == RT_NULL)
         return RT_NULL;
 
+    // rt_kprintf("[DEBUG] Calling RT_KERNEL_MALLOC(%d)\n", stack_size);
     stack_start = (void *)RT_KERNEL_MALLOC(stack_size);
+    // rt_kprintf("[DEBUG] RT_KERNEL_MALLOC() returned 0x%08X\n", (uint32_t)stack_start);
     if (stack_start == RT_NULL)
     {
         /* allocate stack failure */
@@ -474,6 +503,7 @@ rt_thread_t rt_thread_create(const char *name,
         return RT_NULL;
     }
 
+    // rt_kprintf("[DEBUG] Calling _thread_init()\n");
     _thread_init(thread,
                  name,
                  entry,
@@ -482,6 +512,7 @@ rt_thread_t rt_thread_create(const char *name,
                  stack_size,
                  priority,
                  tick);
+    // rt_kprintf("[DEBUG] _thread_init() completed\n");
 
     return thread;
 }

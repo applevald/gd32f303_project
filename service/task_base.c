@@ -60,6 +60,8 @@ int init_task_base(_task_base_t *task)
         return -RT_ERROR;
     }
     /* thread create */
+    rt_kprintf("[DEBUG] Creating thread '%s': stack=%d, priority=%d, tick=%d\n",
+               task->task_name, task->stack_size, task->priority, task->tick);
     task->thread = rt_thread_create(task->task_name, task->task_entry, task->private_data, task->stack_size, task->priority, task->tick);
     if (task->thread == RT_NULL)
     {

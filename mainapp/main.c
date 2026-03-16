@@ -3,6 +3,7 @@
 #include "includes.h"
 #include "gd32f30x_gpio.h"
 #include "gd32f30x_rcu.h"
+#include "gd32f30x_usart.h"
 
 #include <rtdbg.h>
 

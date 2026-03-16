@@ -114,8 +114,7 @@ int usart_communication_init(void)
     return RT_EOK;
 }
 
-/* Export to automatic initialization at app start */
-INIT_APP_EXPORT(usart_communication_init);
+/* 注意：不使用 INIT_APP_EXPORT 自动初始化，由 protocol_init() 显式调用，保证 rx_sem 在 proto_rx 线程启动前完成初始化 */
 
 /* Shell command for testing */
 static void mainboard_send_cmd(int argc, char **argv)

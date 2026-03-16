@@ -64,6 +64,32 @@ static void main_app_task_entry(void *parameter)
 }
 static int main_task_init(void)
 {
+    /* DEBUG: 检查 main_task 结构体的初始值 */
+    rt_kprintf("[DEBUG] main_task.task.task_name = %s\n", main_task.task.task_name ? main_task.task.task_name : "(NULL)");
+    rt_kprintf("[DEBUG] main_task.task.stack_size = %d\n", main_task.task.stack_size);
+    rt_kprintf("[DEBUG] main_task.task.priority = %d\n", main_task.task.priority);
+    rt_kprintf("[DEBUG] main_task.task.tick = %d\n", main_task.task.tick);
+    rt_kprintf("[DEBUG] main_task.task.msg_num = %d\n", main_task.task.msg_num);
+    rt_kprintf("[DEBUG] main_task.task.msg_size = %d\n", main_task.task.msg_size);
+    
+    /* 检查是否需要手动修复（如果 .data 段初始化失败） */
+    if (main_task.task.stack_size == 0 || main_task.task.priority >= RT_THREAD_PRIORITY_MAX) {
+        rt_kprintf("[WARN] main_task struct corrupted! Manually reinitializing...\n");
+        /* 使用 memcpy 方式重新初始化整个结构体 */
+        _main_task_t temp_task = {
+            .task = {
+                .task_name = MAIN_APP_NAME,
+                .stack_size = MAIN_APP_TASK_STACK_SIZE,
+                .priority = MAIN_APP_TASK_PRIORITY,
+                .tick = MAIN_APP_TASK_TICKS,
+                .private_data = RT_NULL,
+                .msg_num = MAIN_APP_MSG_NUM,
+                .msg_size = MAIN_APP_MSG_SIZE,
+            },
+        };
+        rt_memcpy(&main_task, &temp_task, sizeof(_main_task_t));
+    }
+    
     main_task.task.task_entry = main_app_task_entry;
     main_task.task.private_data = &main_task;
 
