@@ -3,9 +3,13 @@
 #include "gd32f30x_gpio.h"
 #include "gd32f30x_rcu.h"
 
-static uint32_t goal_temp = 0; // 目标温度，超过该温度时关闭加热器
+uint32_t goal_temp = 0; // 目标温度，超过该温度时关闭加热器
 static rt_thread_t heater_thread = RT_NULL;
 
+uint32_t get_goal_temp(void)
+{
+    return goal_temp;
+}
 
 void heater_set_state(uint8_t state)
 {

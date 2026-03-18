@@ -45,7 +45,7 @@
         <PrevWtdReset>Software</PrevWtdReset>
         <OnlineReset>Software</OnlineReset>
         <JetConnSerialNo>#PW_HID_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106</JetConnSerialNo>
-        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:#PW_WINUSB_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:</JetConnFoundProbes>
+        <JetConnFoundProbes>#PW_HID_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:#PW_HID_CMSIS-DAP:AB9E78F947C78993796E6CFBC19B1D8B:#PW_WINUSB_CMSIS-DAP:A5883D8BA9786059BF45561A9A23B106:#PW_WINUSB_CMSIS-DAP:AB9E78F947C78993796E6CFBC19B1D8B:</JetConnFoundProbes>
         <DisableInterrupts>0</DisableInterrupts>
         <LeaveRunning>0</LeaveRunning>
         <MultiCoreRunAll>0</MultiCoreRunAll>
@@ -74,8 +74,8 @@
     <SWOManager>
         <SamplingDivider>8192</SamplingDivider>
         <OverrideClock>0</OverrideClock>
-        <CpuClock>1953721961</CpuClock>
-        <SwoClock>1376416626</SwoClock>
+        <CpuClock>0</CpuClock>
+        <SwoClock>0</SwoClock>
         <DataLogMode>0</DataLogMode>
         <ItmPortsEnabled>63</ItmPortsEnabled>
         <ItmTermIOPorts>1</ItmTermIOPorts>

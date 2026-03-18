@@ -49,8 +49,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         break;
         case CMD_SET_FAN:
             /* 设置风扇速度命令 */
-            if (len >= 2)
-            {
                 uint8_t fan_id = data[0];
                 uint8_t fan_speed = data[1]; 
 
@@ -74,13 +72,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 
                 /* 使用 protocol_send_response_ok 发送响应 */
                 protocol_send_response_ok(CMD_SET_FAN, data, 2);
-            }
-            else
-            {
-                /* 参数错误 */
-                rt_kprintf("[App] Error: CMD_SET_FAN requires 2 bytes, got %d\n", len);
-                protocol_send_response_error(CMD_SET_FAN, 0x01);
-            }
             break;
             
         case CMD_FAN_GETSPEED:
@@ -100,9 +91,7 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 uint8_t fan_data[28] = {0};
                 extern int get_fan_speed(uint8_t *data, uint16_t len);
                 int data_len = get_fan_speed(fan_data, sizeof(fan_data));
-                
-                if (data_len > 0)
-                {
+    
                     /* 打印调试信息 */
                     rt_kprintf("[App] Fan speed data: ");
                     for (int i = 0; i < data_len && i < 28; i++)
@@ -114,12 +103,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     
                     /* 发送应答（包含风扇转速数据）*/
                     protocol_send_response_ok(CMD_FAN_GETSPEED, fan_data, data_len);
-                }
-                else
-                {
-                    /* 数据获取失败 */
-                    protocol_send_response_error(CMD_FAN_GETSPEED, 0x03);
-                }
             }
             break;
             
@@ -145,8 +128,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
                 int data_len = get_fan_status(fan_status_data, sizeof(fan_status_data), target_speed);
                 
-                if (data_len > 0)
-                {
                     /* 打印调试信息 */
                     rt_kprintf("[App] Fan status data: ");
                     for (int i = 0; i < data_len && i < 28; i++)
@@ -158,72 +139,36 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     
                     /* 发送应答（包含风扇状态数据）*/
                     protocol_send_response_ok(CMD_FAN_STATUS, fan_status_data, data_len);
-                }
-                else
-                {
-                    /* 数据获取失败 */
-                    protocol_send_response_error(CMD_FAN_STATUS, 0x03);
-                }
             }
             break;
             
         case CMD_COLOR_LIGHT:
             /* 彩灯控制命令 */
-            if (len >= 2)
-            {
-                uint8_t color = data[0];
-                uint8_t breath_mode = data[1];
-                rt_kprintf("[App] Color light command: color=0x%02X, breath_mode=0x%02X\n", color, breath_mode);
+                uint8_t color_get = data[0];
+                uint8_t breath_mode_get = data[1];
+                rt_kprintf("[App] Color light command: color=0x%02X, breath_mode=0x%02X\n", color_get, breath_mode_get);
                
                 /* 调用灯光控制函数 */
                 extern rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode);
-                if (ws2811_protocol_control(color, breath_mode) == RT_EOK)
-                {
+                ws2811_protocol_control(color_get, breath_mode_get);
                     /* 发送成功应答 */
                     protocol_send_response_ok(cmd, data, 2);
-                }
-                else
-                {
-                    /* 发送失败应答 */
-                    protocol_send_response_error(cmd, 0x02);
-                }
-            }
-            else
-            {
-                protocol_send_response_error(cmd, 0x01);
-            }
             break;
 
         case CMD_LIGHT_BAR:
             /* 进度灯条控制命令 */
-            if (len >= 4)
-            {
                 uint8_t progress = data[0];           /* 字节0: 进度值(0-100) */
-                uint16_t color_param = (data[1] << 8) | data[2];  /* 字节1-2: 颜色参数(16位) */
-                uint8_t breath_mode = data[3];        /* 字节3: 呼吸参数 */
+                uint8_t color_param = data[1];
+                uint8_t breath_mode = data[2];        /* 字节3: 呼吸参数 */
                 
                 rt_kprintf("[App] Light bar command: progress=%d, color=0x%04X, breath=0x%02X\n", 
                           progress, color_param, breath_mode);
                 
                 /* 调用灯条控制函数 */
-                extern rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint16_t color_param, rt_uint8_t breath_mode);
-                if (ws2812_bar_protocol_control(progress, color_param, breath_mode) == RT_EOK)
-                {
+                extern rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint8_t color_param, rt_uint8_t breath_mode);
+                ws2812_bar_protocol_control(progress, color_param, breath_mode);
                     /* 发送成功应答，回显原始数据 */
-                    protocol_send_response_ok(cmd, data, 4);
-                }
-                else
-                {
-                    /* 发送失败应答 */
-                    protocol_send_response_error(cmd, 0x02);
-                }
-            }
-            else
-            {
-                /* 参数长度错误 */
-                rt_kprintf("[App] Error: CMD_LIGHT_BAR requires 4 bytes, got %d\n", len);
-                protocol_send_response_error(cmd, 0x01);
-            }
+                protocol_send_response_ok(cmd, data, 3);
             break;
         
         case CMD_ALL_STATUS:
@@ -235,7 +180,10 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度整数部分 */
             all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度小数部分 */
             //目标温度-Todo:  
-            all_status_data[2] = 25;   
+            extern uint32_t get_goal_temp(void);
+            uint32_t goal_temp_value;
+            goal_temp_value =get_goal_temp();
+            all_status_data[2] = goal_temp_value;   
 
             extern void heater_get_state(uint8_t *state);
             uint8_t heater_state;    
@@ -274,9 +222,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             /* 天窗控制命令 */
             {
                 uint8_t control_value = 0;
-                
-                if (len >= 1)
-                {
                     if (data[0] == 0x00)
                     {
                         /* 关闭天窗 */
@@ -312,7 +257,6 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     
                     /* 发送成功应答 */
                     protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
-                }
             }
             break;
 

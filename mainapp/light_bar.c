@@ -473,79 +473,103 @@ static void stop_breath_effect(void)
     rt_kprintf("[LightBar] Breath effect stopped\n");
 }
 
-/**
- * @brief  解析16位颜色参数为RGB分量
- * @param  color_param: 16位颜色参数(2字节)
- * @param  r: 红色分量输出指针
- * @param  g: 绿色分量输出指针
- * @param  b: 蓝色分量输出指针
- * @note   颜色编码：
- *         - 高8位: 进度条颜色 (0-全色, 1-99按比例混合, 100-全色)
- *         - 低8位: 颜色值 (bit[7]:进度标志, bit[6:0]:颜色编码)
- *         根据协议文档定义的颜色码
- */
-static void ws2812_parse_color(rt_uint16_t color_param, rt_uint8_t *r, rt_uint8_t *g, rt_uint8_t *b)
-{
-    rt_uint8_t color_index = color_param & 0xFF;  /* 低8位为颜色索引 */
-    
-    /* 默认颜色映射 */
-    switch (color_index)
+    /* 颜色映射函数 */
+    static void map_color(rt_uint8_t index, rt_uint8_t *r, rt_uint8_t *g, rt_uint8_t *b)
     {
-        case 0x00:  /* 全白 */
-            *r = 255; *g = 255; *b = 255;
-            break;
-        case 0x01:  /* 红色 */
-            *r = 255; *g = 0; *b = 0;
-            break;
-        case 0x02:  /* 黄色 */
-            *r = 255; *g = 255; *b = 0;
-            break;
-        case 0x03:  /* 蓝色 */
-            *r = 0; *g = 0; *b = 255;
-            break;
-        case 0x04:  /* 绿色 */
-            *r = 0; *g = 255; *b = 0;
-            break;
-        default:    /* 其他值按白色处理 */
-            *r = 255; *g = 255; *b = 255;
-            break;
+        switch (index)
+        {
+            case 0x00:  /* 全白 */
+                *r = 255; *g = 255; *b = 255;
+                break;
+            case 0x01:  /* 红色 */
+                *r = 255; *g = 0; *b = 0;
+                break;
+            case 0x02:  /* 黄色 */
+                *r = 255; *g = 255; *b = 0;
+                break;
+            case 0x03:  /* 蓝色 */
+                *r = 0; *g = 0; *b = 255;
+                break;
+            case 0x04:  /* 绿色 */
+                *r = 0; *g = 255; *b = 0;
+                break;
+            default:    /* 其他值按白色处理 */
+                *r = 255; *g = 255; *b = 255;
+                break;
+        }
     }
+// color_param：颜色参数说明：
+// 颜色参数为 8位数据（1字节），格式如下：
+// ● 高 4位：进度条框底色,即为所有没显示进度的灯颜色
+// ● 低 4位：进度显色，显示进度颜色
+static void ws2812_parse_color(rt_uint8_t color_param, rt_uint8_t *bg_r, rt_uint8_t *bg_g, rt_uint8_t *bg_b,
+                               rt_uint8_t *fg_r, rt_uint8_t *fg_g, rt_uint8_t *fg_b)
+{
+    rt_uint8_t bg_color_index = (color_param >> 4) & 0x0F;  /* 高4位：背景色 */
+    rt_uint8_t fg_color_index = color_param & 0x0F;         /* 低4位：前景色 */
+    
+    
+    /* 解析背景色（高4位）*/
+    map_color(bg_color_index, bg_r, bg_g, bg_b);
+    
+    /* 解析前景色（低4位）*/
+    map_color(fg_color_index, fg_r, fg_g, fg_b);
 }
 
 /**
  * @brief  协议控制函数 - 处理灯条控制命令
  * @param  progress: 进度值(0-100)
- * @param  color_param: 颜色参数(16位，2字节)
+ * @param  color_param: 颜色参数(8位)
+ *         高4位：背景色，低4位：前景色
  * @param  breath_mode: 呼吸模式(8位)
  * @retval RT_EOK: 成功
  * @note   根据协议0xA5命令格式处理进度灯显示
  */
-rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint16_t color_param, rt_uint8_t breath_mode)
+rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint8_t color_param, rt_uint8_t breath_mode)
 {
-    rt_uint8_t r, g, b;
+    rt_uint8_t bg_r, bg_g, bg_b;  /* 背景色 */
+    rt_uint8_t fg_r, fg_g, fg_b;  /* 前景色 */
     
-    rt_kprintf("[LightBar] Protocol control: progress=%d, color=0x%04X, breath=0x%02X\n", 
+    rt_kprintf("[LightBar] Protocol control: progress=%d, color=0x%02X, breath=0x%02X\n", 
                progress, color_param, breath_mode);
     
     /* 解析颜色参数 */
-    ws2812_parse_color(color_param, &r, &g, &b);
+    ws2812_parse_color(color_param, &bg_r, &bg_g, &bg_b, &fg_r, &fg_g, &fg_b);
+    
+    rt_kprintf("[LightBar] BG Color RGB(%d,%d,%d), FG Color RGB(%d,%d,%d)\n",
+               bg_r, bg_g, bg_b, fg_r, fg_g, fg_b);
     
     /* 根据呼吸模式调整显示 */
     if (breath_mode == 0x00)
     {
         /* 关闭呼吸效果，正常显示 */
         stop_breath_effect();
-        ws2812_bar_set_progress(progress, r, g, b);
+        
+        /* 显示进度条：背景色 + 前景色 */
+        rt_uint8_t i;
+        rt_uint8_t leds_to_light = (progress * WS2812_LED_NUM) / 100;
+        
+        /* 点亮前景色LED */
+        for (i = 0; i < leds_to_light; i++)
+        {
+            ws2812_bar_set_color(i, fg_r, fg_g, fg_b);
+        }
+        
+        /* 点亮背景色LED */
+        for (i = leds_to_light; i < WS2812_LED_NUM; i++)
+        {
+            ws2812_bar_set_color(i, bg_r, bg_g, bg_b);
+        }
+        
         ws2812_bar_update();
     }
     else
     {
-        /* 启动持续呼吸效果 */
-        start_breath_effect(progress, r, g, b, breath_mode);
+        /* 启动持续呼吸效果（使用前景色）*/
+        start_breath_effect(progress, fg_r, fg_g, fg_b, breath_mode);
     }
     
-    rt_kprintf("[LightBar] Display updated - %d%% progress, RGB(%d,%d,%d)\n", 
-               progress, r, g, b);
+    rt_kprintf("[LightBar] Display updated - %d%% progress\n", progress);
     
     return RT_EOK;
 }
