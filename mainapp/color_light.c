@@ -777,7 +777,7 @@ static void ws2811_protocol_breath_entry(void *parameter)
 
 /**
  * @brief  协议灯光控制函数
- * @param  color: 颜色值 (0x00=绿色, 0x01=黄色, 0x02=红色)
+ * @param  color: 颜色值 (0x00=白色, 0x01=红色, 0x02=黄色, 0x03=蓝色, 0x04=绿色)
  * @param  breath_mode: 呼吸模式 (0x00=关闭, 0x01=慢速2s, 0x02=中速1s, 0x03=快速0.5s)
  * @retval RT_EOK: 成功, -RT_ERROR: 失败
  */
@@ -797,19 +797,29 @@ rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode)
     /* 根据颜色值设置RGB */
     switch (color)
     {
-        case 0x00:  /* 绿色 */
-            r = 0; g = 255; b = 0;
-            rt_kprintf("  Color: Green\n");
+        case 0x00:  /* 白色 */
+            r = 255; g = 255; b = 255;
+            rt_kprintf("  Color: White\n");
             break;
             
-        case 0x01:  /* 黄色 */
+        case 0x01:  /* 红色 */
+            r = 255; g = 0; b = 0;
+            rt_kprintf("  Color: Red\n");
+            break;
+            
+        case 0x02:  /* 黄色 */
             r = 255; g = 255; b = 0;
             rt_kprintf("  Color: Yellow\n");
             break;
             
-        case 0x02:  /* 红色 */
-            r = 255; g = 0; b = 0;
-            rt_kprintf("  Color: Red\n");
+        case 0x03:  /* 蓝色 */
+            r = 0; g = 0; b = 255;
+            rt_kprintf("  Color: Blue\n");
+            break;
+            
+        case 0x04:  /* 绿色 */
+            r = 0; g = 255; b = 0;
+            rt_kprintf("  Color: Green\n");
             break;
             
         default:

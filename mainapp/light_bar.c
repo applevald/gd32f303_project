@@ -28,7 +28,7 @@
 #define WS2812_GPIO_CLK         RCU_GPIOC
 
 /* LED配置 */
-#define WS2812_LED_NUM          48      /* LED数量 */
+#define WS2812_LED_NUM          72      /* LED数量 */
 
 /* GPIO操作宏 */
 #define WS2812_PIN_HIGH()       GPIO_BOP(WS2812_GPIO_PORT) = WS2812_GPIO_PIN
