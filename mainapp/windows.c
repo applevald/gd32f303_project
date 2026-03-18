@@ -192,24 +192,26 @@ static void motor_stop(void)
 
 /**
  * @brief  电机正转（天窗关闭方向）
+ * HRBB33驱动器：AIN1=1, AIN2=0, BIN1=0, BIN2=1 为正转
  */
 static void motor_forward(void)
 {
-    gpio_bit_set(MOTOR_AIN1_PORT, MOTOR_AIN1_PIN);
-    gpio_bit_reset(MOTOR_AIN2_PORT, MOTOR_AIN2_PIN);
-    gpio_bit_reset(MOTOR_BIN1_PORT, MOTOR_BIN1_PIN);
-    gpio_bit_reset(MOTOR_BIN2_PORT, MOTOR_BIN2_PIN);
+    gpio_bit_set(MOTOR_AIN1_PORT, MOTOR_AIN1_PIN);      // PC9 = 1
+    gpio_bit_reset(MOTOR_AIN2_PORT, MOTOR_AIN2_PIN);    // PA8 = 0
+    gpio_bit_reset(MOTOR_BIN1_PORT, MOTOR_BIN1_PIN);    // PA9 = 0
+    gpio_bit_set(MOTOR_BIN2_PORT, MOTOR_BIN2_PIN);      // PA10 = 1
 }
 
 /**
  * @brief  电机反转（天窗打开方向）
+ * HRBB33驱动器：AIN1=0, AIN2=1, BIN1=1, BIN2=0 为反转
  */
 static void motor_reverse(void)
 {
-    gpio_bit_reset(MOTOR_AIN1_PORT, MOTOR_AIN1_PIN);
-    gpio_bit_reset(MOTOR_AIN2_PORT, MOTOR_AIN2_PIN);
-    gpio_bit_set(MOTOR_BIN1_PORT, MOTOR_BIN1_PIN);
-    gpio_bit_reset(MOTOR_BIN2_PORT, MOTOR_BIN2_PIN);
+    gpio_bit_reset(MOTOR_AIN1_PORT, MOTOR_AIN1_PIN);    // PC9 = 0
+    gpio_bit_set(MOTOR_AIN2_PORT, MOTOR_AIN2_PIN);      // PA8 = 1
+    gpio_bit_set(MOTOR_BIN1_PORT, MOTOR_BIN1_PIN);      // PA9 = 1
+    gpio_bit_reset(MOTOR_BIN2_PORT, MOTOR_BIN2_PIN);    // PA10 = 0
 }
 
 /**

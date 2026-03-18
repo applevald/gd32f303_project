@@ -49,11 +49,13 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         break;
         case CMD_SET_FAN:
             /* 设置风扇速度命令 */
-                uint8_t fan_id = data[0];
+                uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高4位表示风扇ID */
+                uint8_t fan_id = data[0]&0x0F;
                 uint8_t fan_speed = data[1]; 
 
                 rt_kprintf("[App] Set fan: fan_id=%d, speed=%d\n", fan_id, fan_speed);
 
+                if(fan_id_high == 0){
                 if(fan_id > 0 && fan_id <= 2){
                     fan_id = 0;
                 }else if(fan_id > 2 && fan_id <= 6){
@@ -63,6 +65,10 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 }else if(fan_id > 10 && fan_id <= 14){
                     fan_id = 3;
                 }
+                }else{
+                    
+                }
+
 
                 fan_set_speed(fan_id, fan_speed);
 
