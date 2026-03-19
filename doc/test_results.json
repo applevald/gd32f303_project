@@ -6,7 +6,7 @@
     "expected": "幻数=0x12",
     "actual": "幻数=12",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A0_002",
@@ -15,7 +15,7 @@
     "expected": "幻数=0x34",
     "actual": "幻数=34",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A0_003",
@@ -24,7 +24,7 @@
     "expected": "幻数=0x00",
     "actual": "幻数=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A0_004",
@@ -33,7 +33,7 @@
     "expected": "幻数=0xFF",
     "actual": "幻数=FF",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_001",
@@ -42,7 +42,7 @@
     "expected": "风扇ID=01, 结果=0x00",
     "actual": "风扇ID=01, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_002",
@@ -51,7 +51,7 @@
     "expected": "风扇ID=02, 结果=0x00",
     "actual": "风扇ID=02, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_003",
@@ -60,7 +60,7 @@
     "expected": "风扇ID=03, 结果=0x00",
     "actual": "风扇ID=03, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_004",
@@ -69,7 +69,7 @@
     "expected": "风扇ID=07, 结果=0x00",
     "actual": "风扇ID=07, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_005",
@@ -78,7 +78,7 @@
     "expected": "风扇ID=0B, 结果=0x00",
     "actual": "风扇ID=0B, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_006",
@@ -87,7 +87,7 @@
     "expected": "风扇ID=10, 结果=0x00",
     "actual": "风扇ID=10, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_007",
@@ -96,7 +96,7 @@
     "expected": "风扇ID=11, 结果=0x00",
     "actual": "风扇ID=11, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_008",
@@ -105,7 +105,7 @@
     "expected": "风扇ID=12, 结果=0x00",
     "actual": "风扇ID=12, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_009",
@@ -114,7 +114,7 @@
     "expected": "风扇ID=13, 结果=0x00",
     "actual": "风扇ID=13, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_010",
@@ -123,7 +123,7 @@
     "expected": "风扇ID=01, 结果=0x00",
     "actual": "风扇ID=01, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_011",
@@ -132,7 +132,7 @@
     "expected": "风扇ID=01, 结果=0x00",
     "actual": "风扇ID=01, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A1_012",
@@ -141,7 +141,7 @@
     "expected": "风扇ID=0E, 结果=0x00",
     "actual": "风扇ID=0E, 结果=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A2_001",
@@ -150,7 +150,7 @@
     "expected": "风扇数据(N*2字节)",
     "actual": "数据长度=28字节, 数据=0116 0200 0300 0400 0500 0600 0700 0800 0900 0A00...",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A3_001",
@@ -159,7 +159,7 @@
     "expected": "风扇状态(N字节)",
     "actual": "数据长度=28字节, 状态=01 02 02 01 03 01 04 01 05 01 06 01 07 01 08 01 09 01 0A 01...",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A4_001",
@@ -168,7 +168,7 @@
     "expected": "灯状态=00, 呼吸=00",
     "actual": "灯状态=00, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:52"
   },
   {
     "test_id": "TC_A4_002",
@@ -177,7 +177,7 @@
     "expected": "灯状态=01, 呼吸=00",
     "actual": "灯状态=01, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:53"
   },
   {
     "test_id": "TC_A4_003",
@@ -186,7 +186,7 @@
     "expected": "灯状态=02, 呼吸=00",
     "actual": "灯状态=02, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:50"
+    "timestamp": "2026-03-19 17:02:53"
   },
   {
     "test_id": "TC_A4_004",
@@ -195,16 +195,16 @@
     "expected": "灯状态=00, 呼吸=01",
     "actual": "灯状态=00, 呼吸=01",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:53"
   },
   {
     "test_id": "TC_A4_005",
     "test_name": "黄色中速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=01, 呼吸=02",
-    "actual": "灯状态=01, 呼吸=02",
-    "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A4_006",
@@ -213,7 +213,7 @@
     "expected": "灯状态=02, 呼吸=03",
     "actual": "灯状态=02, 呼吸=03",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A4_007",
@@ -222,7 +222,7 @@
     "expected": "灯状态=00, 呼吸=03",
     "actual": "灯状态=00, 呼吸=03",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_001",
@@ -231,7 +231,7 @@
     "expected": "进度=00, 颜色=00, 呼吸=00",
     "actual": "进度=00, 颜色=00, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_002",
@@ -240,7 +240,7 @@
     "expected": "进度=32, 颜色=01, 呼吸=00",
     "actual": "进度=32, 颜色=01, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_003",
@@ -249,7 +249,7 @@
     "expected": "进度=4B, 颜色=02, 呼吸=00",
     "actual": "进度=4B, 颜色=02, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_004",
@@ -258,7 +258,7 @@
     "expected": "进度=64, 颜色=04, 呼吸=00",
     "actual": "进度=64, 颜色=04, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_005",
@@ -267,7 +267,7 @@
     "expected": "进度=19, 颜色=03, 呼吸=01",
     "actual": "进度=19, 颜色=03, 呼吸=01",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_006",
@@ -276,7 +276,7 @@
     "expected": "进度=0A, 颜色=41, 呼吸=00",
     "actual": "进度=0A, 颜色=41, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_007",
@@ -285,7 +285,7 @@
     "expected": "进度=63, 颜色=03, 呼吸=02",
     "actual": "进度=63, 颜色=03, 呼吸=02",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A5_008",
@@ -294,25 +294,25 @@
     "expected": "进度=01, 颜色=00, 呼吸=00",
     "actual": "进度=01, 颜色=00, 呼吸=00",
     "error": null,
-    "timestamp": "2026-03-19 11:17:51"
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A6_001",
     "test_name": "查询所有状态",
-    "passed": false,
+    "passed": true,
     "expected": "32字节数据",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:17:54"
+    "actual": "数据长度=32字节, 前20字节=0B 20 00 00 01 02 02 01 03 01 04 01 05 01 06 01 07 01 08 01...",
+    "error": null,
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A7_001",
     "test_name": "设置目标温度为50°C",
-    "passed": false,
+    "passed": true,
     "expected": "设定结果=0x00",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:17:57"
+    "actual": "设定结果=00",
+    "error": null,
+    "timestamp": "2026-03-19 17:02:56"
   },
   {
     "test_id": "TC_A7_002",
@@ -321,43 +321,43 @@
     "expected": "设定结果=0x00",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:00"
+    "timestamp": "2026-03-19 17:02:59"
   },
   {
     "test_id": "TC_A7_003",
     "test_name": "设置目标温度为150°C",
     "passed": false,
     "expected": "设定结果=0x00",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:03"
+    "actual": "设定结果=02",
+    "error": "设定结果错误: 02",
+    "timestamp": "2026-03-19 17:03:00"
   },
   {
     "test_id": "TC_A7_004",
     "test_name": "边界值测试 - 温度0°C",
-    "passed": false,
+    "passed": true,
     "expected": "设定结果=0x00",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:06"
+    "actual": "设定结果=00",
+    "error": null,
+    "timestamp": "2026-03-19 17:03:00"
   },
   {
     "test_id": "TC_A7_005",
     "test_name": "边界值测试 - 温度255°C",
     "passed": false,
     "expected": "设定结果=0x00",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:09"
+    "actual": "设定结果=02",
+    "error": "设定结果错误: 02",
+    "timestamp": "2026-03-19 17:03:00"
   },
   {
     "test_id": "TC_A8_001",
     "test_name": "关闭天窗",
-    "passed": false,
+    "passed": true,
     "expected": "天窗状态(1字节)",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:12"
+    "actual": "天窗状态=00",
+    "error": null,
+    "timestamp": "2026-03-19 17:03:00"
   },
   {
     "test_id": "TC_A8_002",
@@ -366,7 +366,7 @@
     "expected": "天窗状态(1字节)",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:15"
+    "timestamp": "2026-03-19 17:03:03"
   },
   {
     "test_id": "TC_A8_003",
@@ -375,7 +375,7 @@
     "expected": "天窗状态(1字节)",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:19"
+    "timestamp": "2026-03-19 17:03:06"
   },
   {
     "test_id": "TC_A8_004",
@@ -384,16 +384,7 @@
     "expected": "错误应答: 原命令码=0xA8, 错误码=0x01",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:22"
-  },
-  {
-    "test_id": "TC_AE_001",
-    "test_name": "未知命令码测试",
-    "passed": false,
-    "expected": "错误应答: 原命令码=0xAF, 错误码=0xFF",
-    "actual": null,
-    "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 11:18:25"
+    "timestamp": "2026-03-19 17:03:09"
   },
   {
     "test_id": "TC_CHECKSUM_001",
@@ -402,6 +393,6 @@
     "expected": "无响应（帧被丢弃）",
     "actual": "无响应",
     "error": null,
-    "timestamp": "2026-03-19 11:18:28"
+    "timestamp": "2026-03-19 17:03:12"
   }
 ]

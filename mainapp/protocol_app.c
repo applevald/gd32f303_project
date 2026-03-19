@@ -250,8 +250,14 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     }
                     else if (data[0] == 0x02)
                     {
-                        /* 查询状态 */
+                        /* 查询状态 - 只返回状态，不执行任何操作 */
                         rt_kprintf("[App] Window status query\n");
+                        extern uint8_t window_get_protocol_status(void);
+                        control_value = window_get_protocol_status();
+                        rt_kprintf("[App] Window status: %d\n", control_value);
+                        /* 立即返回状态 */
+                        protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
+                        break;
                     }
                     else
                     {
@@ -260,13 +266,13 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                         protocol_send_response_error(cmd, 0x01);
                         break;
                     }
-                    
-                    /* 获取天窗协议状态 */
+
+                    /* 获取天窗协议状态并返回（用于关闭/打开命令） */
                     extern uint8_t window_get_protocol_status(void);
                     control_value = window_get_protocol_status();
-                    
+
                     rt_kprintf("[App] Window status: %d\n", control_value);
-                    
+
                     /* 发送成功应答 */
                     protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
             }
@@ -282,7 +288,11 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             
         default:
             rt_kprintf("[App] Unknown command: 0x%02X\n", cmd);
-            protocol_send_response_error(cmd, 0xFF);
+            /* 立即发送错误响应，不使用protocol_send_response_error避免额外开销 */
+            uint8_t error_data[2];
+            error_data[0] = cmd;         /* 原命令码 */
+            error_data[1] = 0xFF;        /* 错误码 */
+            protocol_send_response_ok(CMD_RESPONSE_ERROR, error_data, 2);
             break;
     }
 }

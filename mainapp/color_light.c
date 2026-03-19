@@ -408,6 +408,9 @@ static rt_uint8_t ws2811_color_buffer[WS2811_LED_NUM * 3];  /* GRB格式 */
 /* 灯效线程句柄 */
 static rt_thread_t light_thread = RT_NULL;
 
+/* 呼吸使能标志 */
+static volatile rt_uint8_t g_breath_enable = 0;
+
 /**
  * @brief  微秒级延时 (精确延时,使用DWT)
  * @param  us: 延时时间(微秒)
@@ -655,16 +658,29 @@ void ws2811_hard_reset(void)
  */
 void ws2811_stop_effect(void)
 {
+    /* 使用标志位停止呼吸效果，避免阻塞 */
+    g_breath_enable = 0;
+    
+    /* 等待呼吸线程退出（非阻塞，最多等待10ms）*/
     if (light_thread != RT_NULL)
     {
-        rt_thread_delete(light_thread);
-        light_thread = RT_NULL;
+        int timeout = 10;
+        while (light_thread != RT_NULL && timeout > 0)
+        {
+            rt_thread_mdelay(1);
+            timeout--;
+        }
+        
+        /* 如果线程仍在运行，尝试删除（仅作为后备）*/
+        if (light_thread != RT_NULL)
+        {
+            rt_thread_delete(light_thread);
+            light_thread = RT_NULL;
+        }
     }
     
     ws2811_clear();
 }
-
-/* ==================== 灯效函数 ==================== */
 
 /**
  * @brief  RGB循环灯效线程入口
@@ -749,9 +765,17 @@ static void ws2811_protocol_breath_entry(void *parameter)
     
     while (1)
     {
+        /* 检查是否需要退出 */
+        if (!g_breath_enable)
+        {
+            break;
+        }
+        
         /* 亮度从0到255 */
         for (brightness = 0; brightness <= 255; brightness += step)
         {
+            if (!g_breath_enable) break;
+            
             ws2811_set_all(
                 (g_breath_color_r * brightness) / 255,
                 (g_breath_color_g * brightness) / 255,
@@ -764,6 +788,8 @@ static void ws2811_protocol_breath_entry(void *parameter)
         /* 亮度从255到0 */
         for (brightness = 255; brightness > 0; brightness -= step)
         {
+            if (!g_breath_enable) break;
+            
             ws2811_set_all(
                 (g_breath_color_r * brightness) / 255,
                 (g_breath_color_g * brightness) / 255,
@@ -773,6 +799,12 @@ static void ws2811_protocol_breath_entry(void *parameter)
             rt_thread_mdelay(g_breath_period / (255 / step * 2));
         }
     }
+    
+    /* 线程退出时清空灯带 */
+    ws2811_clear();
+    
+    /* 清除线程句柄 */
+    light_thread = RT_NULL;
 }
 
 /**
@@ -866,6 +898,12 @@ rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode)
                 rt_kprintf("WS2811: Unknown breath mode 0x%02X\n", breath_mode);
                 return -RT_ERROR;
         }
+        
+        /* 先停止旧的呼吸效果 */
+        ws2811_stop_effect();
+        
+        /* 启用呼吸效果 */
+        g_breath_enable = 1;
         
         /* 创建呼吸灯线程 */
         light_thread = rt_thread_create("led_proto_breath",

@@ -415,11 +415,11 @@ static void start_breath_effect(rt_uint8_t progress, rt_uint8_t r, rt_uint8_t g,
         initialized = RT_TRUE;
     }
     
-    /* 如果线程已存在，先停止旧的呼吸效果 */
+    /* 如果线程已存在，直接更新呼吸参数，不需要等待 */
     if (breath_thread != RT_NULL)
     {
-        g_breath_ctrl.enable = 0;
-        rt_thread_mdelay(50);  /* 等待线程完成当前循环 */
+        /* 直接更新参数，线程会在下一次循环时使用新参数 */
+        g_breath_ctrl.enable = 0;  /* 暂时禁用，确保线程使用新参数 */
     }
     
     /* 设置新的呼吸参数 */
@@ -428,7 +428,7 @@ static void start_breath_effect(rt_uint8_t progress, rt_uint8_t r, rt_uint8_t g,
     g_breath_ctrl.g = g;
     g_breath_ctrl.b = b;
     g_breath_ctrl.mode = mode;
-    g_breath_ctrl.enable = 1;
+    g_breath_ctrl.enable = 1;  /* 启用新的呼吸效果 */
     
     /* 创建呼吸线程（如果还没创建）*/
     if (breath_thread == RT_NULL)
@@ -451,7 +451,7 @@ static void start_breath_effect(rt_uint8_t progress, rt_uint8_t r, rt_uint8_t g,
     }
     else
     {
-        rt_kprintf("[LightBar] Breath thread already exists, parameters updated\n");
+        rt_kprintf("[LightBar] Breath thread parameters updated\n");
     }
 }
 

@@ -270,32 +270,29 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
     
     rt_memset(data, 0, len);
     
-    /* 填充风扇状态数据 */
+    /* 填充风扇状态数据 - 优化版本，减少浮点运算 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
-        /* 更新转速 */
-        update_fan_rpm(i);
-        
-        uint8_t fan_id = i + 1;
+        /* 快速读取RPM，减少函数调用开销 */
         uint16_t rpm = g_fan_fg[i].rpm;
+        uint8_t fan_id = i + 1;
         uint8_t target_speed = fan_target_speed[i];  /* 目标速度百分比 */
         uint8_t status = 0x00;  /* 默认正常 */
-        uint16_t rated_rpm;
+        uint16_t target_rpm;
         
-        /* 根据风扇ID确定额定转速 */
+        /* 根据风扇ID确定额定转速 - 使用整数运算 */
         if (fan_id <= 2)
         {
-            rated_rpm = 9000;
+            /* FAN1和FAN2: 9000 RPM */
+            target_rpm = (90 * target_speed);  /* 9000 * target_speed / 100 */
         }
         else
         {
-            rated_rpm = 5000;
+            /* FAN3-FAN14: 5000 RPM */
+            target_rpm = (50 * target_speed);  /* 5000 * target_speed / 100 */
         }
         
-        /* 计算目标转速 */
-        uint16_t target_rpm = (rated_rpm * target_speed) / 100;
-        
-        /* 判断风扇状态 */
+        /* 判断风扇状态 - 使用整数比较 */
         if (target_speed > 0)
         {
             /* 设置了速度 */
@@ -304,7 +301,7 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
                 /* 堵转：设置了速度但转速为0 */
                 status = 0x01;
             }
-            else if (rpm < (target_rpm * 70 / 100))
+            else if (rpm < (target_rpm * 7 / 10))  /* 目标转速的70% */
             {
                 /* 转速过慢：实际转速 < 目标转速的70% */
                 status = 0x02;

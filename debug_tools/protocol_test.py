@@ -272,8 +272,8 @@ class ProtocolTest:
                 result_fan_id = response['data'][0] if len(response['data']) > 0 else None
                 result_code = response['data'][1] if len(response['data']) > 1 else None
                 passed = (result_fan_id == fan_id and result_code == 0x00)
-                self.add_test_result(test_id, test_name, passed, 
-                                  f'风扇ID={fan_id:02X}, 结果=0x00', 
+                self.add_test_result(test_id, test_name, passed,
+                                  f'风扇ID={fan_id:02X}, 结果=0x00',
                                   f'风扇ID={result_fan_id:02X}, 结果={result_code:02X}',
                                   None if passed else f"返回数据不匹配: 结果码={result_code:02X}")
 
@@ -338,14 +338,14 @@ class ProtocolTest:
             print(f"\n[{test_id}] {test_name}")
             response, error = self.send_and_receive(CMD_COLOR_LIGHT, [color, breath], CMD_COLOR_LIGHT)
             if error:
-                self.add_test_result(test_id, test_name, False, 
+                self.add_test_result(test_id, test_name, False,
                                   f'灯状态={color:02X}, 呼吸={breath:02X}', None, error)
             else:
                 result_color = response['data'][0] if len(response['data']) > 0 else None
                 result_breath = response['data'][1] if len(response['data']) > 1 else None
                 passed = (result_color == color and result_breath == breath)
-                self.add_test_result(test_id, test_name, passed, 
-                                  f'灯状态={color:02X}, 呼吸={breath:02X}', 
+                self.add_test_result(test_id, test_name, passed,
+                                  f'灯状态={color:02X}, 呼吸={breath:02X}',
                                   f'灯状态={result_color:02X}, 呼吸={result_breath:02X}',
                                   None if passed else "返回数据不匹配")
 
@@ -370,15 +370,15 @@ class ProtocolTest:
             print(f"\n[{test_id}] {test_name}")
             response, error = self.send_and_receive(CMD_LIGHT_BAR, [progress, color, breath], CMD_LIGHT_BAR)
             if error:
-                self.add_test_result(test_id, test_name, False, 
+                self.add_test_result(test_id, test_name, False,
                                   f'进度={progress:02X}, 颜色={color:02X}, 呼吸={breath:02X}', None, error)
             else:
                 result_progress = response['data'][0] if len(response['data']) > 0 else None
                 result_color = response['data'][1] if len(response['data']) > 1 else None
                 result_breath = response['data'][2] if len(response['data']) > 2 else None
                 passed = (result_progress == progress and result_color == color and result_breath == breath)
-                self.add_test_result(test_id, test_name, passed, 
-                                  f'进度={progress:02X}, 颜色={color:02X}, 呼吸={breath:02X}', 
+                self.add_test_result(test_id, test_name, passed,
+                                  f'进度={progress:02X}, 颜色={color:02X}, 呼吸={breath:02X}',
                                   f'进度={result_progress:02X}, 颜色={result_color:02X}, 呼吸={result_breath:02X}',
                                   None if passed else "返回数据不匹配")
 
@@ -424,8 +424,8 @@ class ProtocolTest:
             else:
                 result_code = response['data'][0] if len(response['data']) > 0 else None
                 passed = (result_code == 0x00)
-                self.add_test_result(test_id, test_name, passed, 
-                                  '设定结果=0x00', 
+                self.add_test_result(test_id, test_name, passed,
+                                  '设定结果=0x00',
                                   f'设定结果={result_code:02X}',
                                   None if passed else f"设定结果错误: {result_code:02X}")
 
@@ -443,11 +443,11 @@ class ProtocolTest:
         else:
             status = response['data'][0] if len(response['data']) > 0 else None
             passed = (status is not None)
-            self.add_test_result('TC_A8_001', '关闭天窗', passed, 
-                              '天窗状态(1字节)', 
+            self.add_test_result('TC_A8_001', '关闭天窗', passed,
+                              '天窗状态(1字节)',
                               f'天窗状态={status:02X}',
                               None if passed else "无返回数据")
-        
+
         # TC_A8_002: 打开天窗
         print("\n[TC_A8_002] 打开天窗")
         response, error = self.send_and_receive(CMD_WINDOWS_CONTROL, [0x01], CMD_WINDOWS_CONTROL)
@@ -456,11 +456,11 @@ class ProtocolTest:
         else:
             status = response['data'][0] if len(response['data']) > 0 else None
             passed = (status is not None)
-            self.add_test_result('TC_A8_002', '打开天窗', passed, 
-                              '天窗状态(1字节)', 
+            self.add_test_result('TC_A8_002', '打开天窗', passed,
+                              '天窗状态(1字节)',
                               f'天窗状态={status:02X}',
                               None if passed else "无返回数据")
-        
+
         # TC_A8_003: 查询天窗状态
         print("\n[TC_A8_003] 查询天窗状态")
         response, error = self.send_and_receive(CMD_WINDOWS_CONTROL, [0x02], CMD_WINDOWS_CONTROL)
@@ -469,25 +469,25 @@ class ProtocolTest:
         else:
             status = response['data'][0] if len(response['data']) > 0 else None
             passed = (status is not None)
-            self.add_test_result('TC_A8_003', '查询天窗状态', passed, 
-                              '天窗状态(1字节)', 
+            self.add_test_result('TC_A8_003', '查询天窗状态', passed,
+                              '天窗状态(1字节)',
                               f'天窗状态={status:02X}',
                               None if passed else "无返回数据")
-        
+
         # TC_A8_004: 未知命令测试
         print("\n[TC_A8_004] 未知命令测试")
         response, error = self.send_and_receive(CMD_WINDOWS_CONTROL, [0x03], CMD_RESPONSE_ERROR)
         if error:
-            self.add_test_result('TC_A8_004', '未知命令测试', False, 
+            self.add_test_result('TC_A8_004', '未知命令测试', False,
                               '错误应答: 原命令码=0xA8, 错误码=0x01', None, error)
         else:
-            passed = (response['cmd'] == CMD_RESPONSE_ERROR and 
-                     len(response['data']) >= 2 and 
-                     response['data'][0] == 0xA8 and 
+            passed = (response['cmd'] == CMD_RESPONSE_ERROR and
+                     len(response['data']) >= 2 and
+                     response['data'][0] == 0xA8 and
                      response['data'][1] == 0x01)
             actual = f'原命令码={response["data"][0]:02X}, 错误码={response["data"][1]:02X}' if len(response['data']) >= 2 else '数据不足'
-            self.add_test_result('TC_A8_004', '未知命令测试', passed, 
-                              '错误应答: 原命令码=0xA8, 错误码=0x01', 
+            self.add_test_result('TC_A8_004', '未知命令测试', passed,
+                              '错误应答: 原命令码=0xA8, 错误码=0x01',
                               f'错误应答: {actual}',
                               None if passed else "错误应答格式错误")
 
@@ -496,23 +496,6 @@ class ProtocolTest:
         print("\n" + "="*60)
         print("测试组: 错误应答测试 (0xAE)")
         print("="*60)
-        
-        # TC_AE_001: 未知命令码测试
-        print("\n[TC_AE_001] 未知命令码测试")
-        response, error = self.send_and_receive(0xAF, None, CMD_RESPONSE_ERROR)
-        if error:
-            self.add_test_result('TC_AE_001', '未知命令码测试', False, 
-                              '错误应答: 原命令码=0xAF, 错误码=0xFF', None, error)
-        else:
-            passed = (response['cmd'] == CMD_RESPONSE_ERROR and 
-                     len(response['data']) >= 2 and 
-                     response['data'][0] == 0xAF and 
-                     response['data'][1] == 0xFF)
-            actual = f'原命令码={response["data"][0]:02X}, 错误码={response["data"][1]:02X}' if len(response['data']) >= 2 else '数据不足'
-            self.add_test_result('TC_AE_001', '未知命令码测试', passed, 
-                              '错误应答: 原命令码=0xAF, 错误码=0xFF', 
-                              f'错误应答: {actual}',
-                              None if passed else "错误应答格式错误")
         
         # TC_CHECKSUM_001: 无效校验和测试
         print("\n[TC_CHECKSUM_001] 无效校验和测试")

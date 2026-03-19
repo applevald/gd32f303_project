@@ -237,7 +237,14 @@ rt_err_t temp_measure_get_temperature(float *temp)
         return -RT_ERROR;
     }
     
-    rt_mutex_take(temp_mutex, RT_WAITING_FOREVER);
+    /* 使用非阻塞方式获取互斥锁，避免超时 */
+    if (rt_mutex_take(temp_mutex, 10) != RT_EOK)  /* 等待10ms */
+    {
+        /* 如果无法获取锁，直接返回当前值（可能稍微旧一点，但不会超时）*/
+        *temp = g_current_temp;
+        return RT_EOK;
+    }
+    
     *temp = g_current_temp;
     rt_mutex_release(temp_mutex);
     
