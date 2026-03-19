@@ -14,7 +14,7 @@ typedef enum {
 
 /* 函数声明 */
 rt_err_t fan_init(void);
-void fan_set_speed(fan_id_t fan, uint8_t percent);
+int fan_set_speed(fan_id_t fan, uint8_t percent);
 void fan_test(void);
 
 #endif /* __FAN_TEST_H__ */

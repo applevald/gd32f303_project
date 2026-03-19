@@ -15,7 +15,7 @@ typedef struct {
 
 static device_state_t g_device_state = {0};
 
-extern void fan_set_speed(uint8_t fan_id, uint8_t speed);
+extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
 /**
  * @brief 命令处理回调函数
  * @param cmd 命令码
@@ -48,8 +48,10 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
         break;
         case CMD_SET_FAN:
+        //TODO:需要根据协议再完善具体细节
             /* 设置风扇速度命令 */
-                uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高4位表示风扇ID */
+            {
+                uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高 4 位表示风扇 ID */
                 uint8_t fan_id = data[0]&0x0F;
                 uint8_t fan_speed = data[1]; 
 
@@ -66,18 +68,20 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     fan_id = 3;
                 }
                 }else{
-                    
+
                 }
 
 
-                fan_set_speed(fan_id, fan_speed);
+                int result = fan_set_speed(fan_id, fan_speed);
 
                 /* 回显响应：使用原命令码和原数据 */
                 rt_kprintf("[App] Sending response: CMD=0x%02X, fan_id=%d, speed=%d\n", 
                           CMD_SET_FAN, data[0], data[1]);
                 
+                data[1] = (result == 0 ? 0x00 : 0x01); /* 成功返回 0x00，失败返回 0x01 */
                 /* 使用 protocol_send_response_ok 发送响应 */
                 protocol_send_response_ok(CMD_SET_FAN, data, 2);
+            }
             break;
             
         case CMD_FAN_GETSPEED:
@@ -149,7 +153,7 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             break;
             
         case CMD_COLOR_LIGHT:
-            /* 彩灯控制命令 */
+            /* 三色灯控制命令 */
                 uint8_t color_get = data[0];
                 uint8_t breath_mode_get = data[1];
                 rt_kprintf("[App] Color light command: color=0x%02X, breath_mode=0x%02X\n", color_get, breath_mode_get);
@@ -212,15 +216,17 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             break;
 
         case CMD_TEMP_SET:
-            extern uint8_t set_goal_temp(uint32_t temp);
-            uint8_t temp_value = data[0];
-            uint8_t result = set_goal_temp(temp_value);
-            if(result == 0){
-                protocol_send_response_ok(CMD_TEMP_SET, &result, 1);
-            }else if(result == 1){
-                protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
-            }else if(result == 2){
-                protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
+            {
+                extern uint8_t set_goal_temp(uint32_t temp);
+                uint8_t temp_value = data[0];
+                uint8_t result = set_goal_temp(temp_value);
+                if(result == 0){
+                    protocol_send_response_ok(CMD_TEMP_SET, &result, 1);
+                }else if(result == 1){
+                    protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
+                }else if(result == 2){
+                    protocol_send_response_ok(CMD_TEMP_SET,  &result, 1);
+                }
             }
             break;
         

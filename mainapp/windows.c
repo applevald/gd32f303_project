@@ -26,6 +26,7 @@
 #include "gd32f30x_gpio.h"
 #include "gd32f30x_rcu.h"
 #include "gd32f30x_adc.h"
+#include "temp_measure.h"
 
 /* ==================== 引脚定义 ==================== */
 /* 限位开关 (输入) */
@@ -215,12 +216,20 @@ static void motor_reverse(void)
 }
 
 /**
- * @brief  读取ADC通道值
- * @param  channel: ADC通道
- * @return ADC值 (0-4095)
+ * @brief  读取 ADC 通道值
+ * @param  channel: ADC 通道
+ * @return ADC 值 (0-4095)
  */
 static uint16_t adc_read_channel(uint8_t channel)
 {
+    uint16_t adc_value;
+    
+    /* 获取 ADC 互斥锁 */
+    if (adc_mutex != RT_NULL)
+    {
+        rt_mutex_take(adc_mutex, RT_WAITING_FOREVER);
+    }
+    
     /* 配置要采样的通道 */
     adc_regular_channel_config(ADC0, 0, channel, ADC_SAMPLETIME_55POINT5);
     
@@ -231,7 +240,15 @@ static uint16_t adc_read_channel(uint8_t channel)
     while (!adc_flag_get(ADC0, ADC_FLAG_EOC));
     
     /* 读取结果 */
-    return adc_regular_data_read(ADC0);
+    adc_value = adc_regular_data_read(ADC0);
+    
+    /* 释放 ADC 互斥锁 */
+    if (adc_mutex != RT_NULL)
+    {
+        rt_mutex_release(adc_mutex);
+    }
+    
+    return adc_value;
 }
 
 /**

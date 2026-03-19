@@ -38,8 +38,9 @@
 #define TEMP_SERIES_R           22000.0f        /* 串联电阻阻值(Ω) */
 
 /* 静态变量 */
-static float g_current_temp = 0.0f;             /* 当前温度值(℃) */
+static float g_current_temp = 0.0f;             /* 当前温度值 (℃) */
 static rt_mutex_t temp_mutex = RT_NULL;         /* 温度数据互斥锁 */
+rt_mutex_t adc_mutex = RT_NULL;          /* ADC 访问互斥锁 - 全局变量 */
 
 /**
  * @brief  初始化ADC温度采集
@@ -84,11 +85,22 @@ static void adc_temp_init(void)
 }
 
 /**
- * @brief  读取ADC原始值
- * @return ADC转换结果 (0-4095)
+ * @brief  读取 ADC 原始值
+ * @return ADC 转换结果 (0-4095)
  */
 static uint16_t adc_read_raw(void)
 {
+    uint16_t adc_value;
+    
+    /* 获取 ADC 互斥锁 */
+    if (adc_mutex != RT_NULL)
+    {
+        rt_mutex_take(adc_mutex, RT_WAITING_FOREVER);
+    }
+    
+    /* 重新配置通道，防止被其他模块覆盖 */
+    adc_regular_channel_config(ADC_PERIPH, 0, ADC_TEMP_CHANNEL, ADC_SAMPLETIME_55POINT5);
+    
     /* 启动转换 */
     adc_software_trigger_enable(ADC_PERIPH, ADC_REGULAR_CHANNEL);
     
@@ -96,7 +108,15 @@ static uint16_t adc_read_raw(void)
     while (!adc_flag_get(ADC_PERIPH, ADC_FLAG_EOC));
     
     /* 读取转换结果 */
-    return adc_regular_data_read(ADC_PERIPH);
+    adc_value = adc_regular_data_read(ADC_PERIPH);
+    
+    /* 释放 ADC 互斥锁 */
+    if (adc_mutex != RT_NULL)
+    {
+        rt_mutex_release(adc_mutex);
+    }
+    
+    return adc_value;
 }
 
 /**
@@ -240,6 +260,15 @@ int temp_measure_init(void)
         return -RT_ERROR;
     }
     
+    /* 创建 ADC 访问互斥锁 */
+    adc_mutex = rt_mutex_create("adc_mtx", RT_IPC_FLAG_PRIO);
+    if (adc_mutex == RT_NULL)
+    {
+        rt_kprintf("[TempMeasure] Failed to create ADC mutex\n");
+        rt_mutex_delete(temp_mutex);
+        return -RT_ERROR;
+    }
+    
     /* 2. 初始化ADC */
     adc_temp_init();
     
@@ -254,6 +283,7 @@ int temp_measure_init(void)
     {
         rt_kprintf("[TempMeasure] Failed to create thread\n");
         rt_mutex_delete(temp_mutex);
+        rt_mutex_delete(adc_mutex);
         return -RT_ERROR;
     }
     
@@ -264,6 +294,6 @@ int temp_measure_init(void)
     return RT_EOK;
 }
 
-// /* 使用INIT_APP_EXPORT自动初始化 */
-// INIT_APP_EXPORT(temp_measure_init);
+/* 使用 INIT_APP_EXPORT 自动初始化 */
+INIT_APP_EXPORT(temp_measure_init);
 

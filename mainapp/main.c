@@ -49,7 +49,7 @@ int main(void)
     // ws2811_test_flow();//test，以上电就亮绿灯，后续可以删除
     fan_init(); //风扇初始化
     fan_speed_measure_init(); //风扇测速初始化
-    temp_measure_init(); //温度测量初始化
+    // temp_measure_init(); //温度测量初始化 - 已改为自动初始化
     
     while (1)
     {

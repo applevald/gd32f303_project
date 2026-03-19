@@ -145,7 +145,7 @@ rt_err_t fan_init(void)
 }
 
 /* 设置风扇速度: 0-100% */
-void fan_set_speed(fan_id_t fan, uint8_t percent)
+int fan_set_speed(fan_id_t fan, uint8_t percent)
 {
     uint16_t pulse;
     
@@ -185,8 +185,10 @@ void fan_set_speed(fan_id_t fan, uint8_t percent)
             }
             break;
         default:
+            return 1;
             break;
     }
+    return 0;
 }
 
 /* 测试GPIO直接输出 - 用于验证硬件连接 */
