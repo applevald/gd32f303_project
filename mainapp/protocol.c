@@ -12,6 +12,9 @@
 static uint8_t rx_buffer[RX_BUFFER_SIZE];
 static uint16_t rx_index = 0;
 
+/* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
+#define PROTOCOL_DEBUG_VERBOSE  0
+
 /* 命令处理回调函数 */
 static protocol_cmd_handler_t g_cmd_handler = RT_NULL;
 
@@ -75,6 +78,7 @@ rt_err_t protocol_send_frame(uint8_t cmd, uint8_t *data, uint16_t len)
     /* 发送数据 */
     usart_send_data_direct(tx_buffer, tx_len);
     
+#if PROTOCOL_DEBUG_VERBOSE
     rt_kprintf("[Protocol] Sent: CMD=0x%02X, LEN=%d, CHK=0x%02X\n", 
                cmd, len, checksum);
     
@@ -85,6 +89,7 @@ rt_err_t protocol_send_frame(uint8_t cmd, uint8_t *data, uint16_t len)
         rt_kprintf("%02X ", tx_buffer[i]);
     }
     rt_kprintf("\n");
+#endif
     
     return RT_EOK;
 }
@@ -95,6 +100,7 @@ rt_err_t protocol_send_frame(uint8_t cmd, uint8_t *data, uint16_t len)
  */
 rt_err_t protocol_send_response_ok(uint8_t cmd, uint8_t *data, uint16_t len)
 {
+#if PROTOCOL_DEBUG_VERBOSE
     /* 调试信息 */
     rt_kprintf("[Protocol] Response OK: CMD=0x%02X, Data (%d bytes): ", cmd, len);
     if (len > 0 && data != RT_NULL)
@@ -105,6 +111,7 @@ rt_err_t protocol_send_response_ok(uint8_t cmd, uint8_t *data, uint16_t len)
         }
     }
     rt_kprintf("\n");
+#endif
     
     /* 直接发送，使用原命令码和原数据，不添加包装 */
     return protocol_send_frame(cmd, data, len);
@@ -134,6 +141,7 @@ static rt_bool_t protocol_parse_frame(uint8_t *buffer, uint16_t len)
         return RT_FALSE;
     }
     
+#if PROTOCOL_DEBUG_VERBOSE
     /* 打印接收到的原始数据（用于调试）*/
     rt_kprintf("[Protocol] Raw data (%d bytes): ", len);
     for (uint16_t i = 0; i < len && i < 32; i++)
@@ -141,6 +149,7 @@ static rt_bool_t protocol_parse_frame(uint8_t *buffer, uint16_t len)
         rt_kprintf("%02X ", buffer[i]);
     }
     rt_kprintf("\n");
+#endif
     
     /* 检查帧头和帧尾 */
     if (buffer[0] != PROTOCOL_FRAME_HEAD || buffer[len - 1] != PROTOCOL_FRAME_TAIL)
@@ -178,9 +187,11 @@ static rt_bool_t protocol_parse_frame(uint8_t *buffer, uint16_t len)
         return RT_FALSE;
     }
     
+#if PROTOCOL_DEBUG_VERBOSE
     /* 调试输出 */
     rt_kprintf("[Protocol] Received: CMD=0x%02X, LEN=%d, CHK=0x%02X\n", 
                cmd, data_len, received_checksum);
+#endif
     
     /* 调用命令处理回调 */
     if (g_cmd_handler != RT_NULL)
@@ -272,7 +283,7 @@ static void protocol_process_buffer(void)
  */
 static void protocol_receive_thread(void *parameter)
 {
-    uint8_t temp_buffer[64];
+    uint8_t temp_buffer[256];  /* 增大缓冲区，提高接收效率 */
     
     rt_kprintf("[Protocol] Receive thread started\n");
     
@@ -281,25 +292,28 @@ static void protocol_receive_thread(void *parameter)
         /* 等待数据到达信号 */
         if (rt_sem_take(&rx_sem, RT_WAITING_FOREVER) == RT_EOK)
         {
-            /* 读取数据 */
-            rt_size_t recv_len = rt_device_read(serial, 0, temp_buffer, sizeof(temp_buffer));
-            
-            if (recv_len > 0)
-            {
-                /* 检查缓冲区是否溢出 */
-                if (rx_index + recv_len > RX_BUFFER_SIZE)
+            /* 循环读取所有可用数据，确保不遗漏 */
+            rt_size_t recv_len;
+            do {
+                recv_len = rt_device_read(serial, 0, temp_buffer, sizeof(temp_buffer));
+                
+                if (recv_len > 0)
                 {
-                    rt_kprintf("[Protocol] Warning: RX buffer overflow, resetting\n");
-                    rx_index = 0;
+                    /* 检查缓冲区是否溢出 */
+                    if (rx_index + recv_len > RX_BUFFER_SIZE)
+                    {
+                        rt_kprintf("[Protocol] Warning: RX buffer overflow, resetting\n");
+                        rx_index = 0;
+                    }
+                    
+                    /* 拷贝到接收缓冲区 */
+                    memcpy(&rx_buffer[rx_index], temp_buffer, recv_len);
+                    rx_index += recv_len;
+                    
+                    /* 处理接收缓冲区 */
+                    protocol_process_buffer();
                 }
-                
-                /* 拷贝到接收缓冲区 */
-                memcpy(&rx_buffer[rx_index], temp_buffer, recv_len);
-                rx_index += recv_len;
-                
-                /* 处理接收缓冲区 */
-                protocol_process_buffer();
-            }
+            } while (recv_len > 0);  /* 继续读取直到没有更多数据 */
         }
     }
 }

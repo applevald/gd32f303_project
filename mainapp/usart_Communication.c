@@ -45,18 +45,17 @@ void usart_send_data(uint8_t *data, uint16_t len)
 }
 
 /**
- * @brief Send raw data via USART (direct hardware access)
+ * @brief Send raw data via USART (using RT-Thread device framework for buffering)
  * @param data Pointer to data buffer
  * @param len Length of data
+ * @note This function uses RT-Thread device framework which provides buffering
+ *       and is more efficient than direct hardware access
  */
 void usart_send_data_direct(uint8_t *data, uint16_t len)
 {
-    for (uint16_t i = 0; i < len; i++)
+    if (serial && len > 0)
     {
-        /* Send one byte */
-        usart_data_transmit(UART3, data[i]);
-        /* Wait until transmit complete */
-        while(RESET == usart_flag_get(UART3, USART_FLAG_TBE));
+        rt_device_write(serial, 0, data, len);
     }
 }
 

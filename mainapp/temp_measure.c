@@ -26,17 +26,24 @@
 #define ADC_VREF                3.3f            /* 参考电压(V) */
 #define ADC_RESOLUTION          4096            /* 12位ADC分辨率 */
 
+/* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
+#define TEMP_MEASURE_DEBUG_VERBOSE  0
+
 /* 温度传感器参数 (根据实际传感器调整) */
 #define TEMP_SENSOR_R25         100000.0f       /* 25℃时的电阻值(Ω) NTC100K */
 #define TEMP_SENSOR_B           3950.0f         /* NTC B值 (常见值, 需核对规格书) */
 /*
- * 修正说明：
- * 根据ADC读数3927 (3.163V) 在室温25°C下反推：
- * V_ntc = VCC × R_ntc / (R_series + R_ntc)
- * 3.163 = 3.3 × 100k / (R_series + 100k)
- * R_series ≈ 4.3kΩ，取标准值 4.7kΩ
+ * 电路接法：VCC(3.3V) -- R_series -- ADC点 -- NTC -- GND
+ * ADC测量的是R_series和NTC之间的电压（即NTC两端电压）
+ * 
+ * 根据实际测量校准：
+ * ADC=3380 (2.72V) 对应室温25°C
+ * 
+ * 验证：当NTC=100kΩ(25°C)时
+ * V_ntc = 3.3 × 100k / (R_series + 100k) = 2.72V
+ * 解得 R_series ≈ 21.4kΩ，取标准值 22kΩ
  */
-#define TEMP_SERIES_R           4700.0f         /* 串联电阻阻值(Ω) */
+#define TEMP_SERIES_R           22000.0f        /* 串联电阻阻值(Ω) - 22kΩ */
 
 /* 静态变量 */
 static float g_current_temp = 0.0f;             /* 当前温度值 (℃) */
@@ -210,6 +217,7 @@ static void temp_measure_thread_entry(void *parameter)
             rt_mutex_release(temp_mutex);
         }
         
+#if TEMP_MEASURE_DEBUG_VERBOSE
         /* 5. 调试输出 (兼容不支持%f的情况) */
         int val_int = (int)voltage;
         int val_frac = (int)((voltage - val_int) * 1000); // 3位小数
@@ -220,6 +228,7 @@ static void temp_measure_thread_entry(void *parameter)
 
         rt_kprintf("[TempMeasure] ADC=%d, Voltage=%d.%03dV, Temp=%d.%02dC\n", 
                    adc_value, val_int, val_frac, temp_int, temp_frac);
+#endif
         
         /* 6. 延时 */
         rt_thread_mdelay(1000);  /* 每秒采集一次 */
@@ -233,21 +242,14 @@ static void temp_measure_thread_entry(void *parameter)
  */
 rt_err_t temp_measure_get_temperature(float *temp)
 {
-    if (temp == RT_NULL || temp_mutex == RT_NULL)
+    if (temp == RT_NULL)
     {
         return -RT_ERROR;
     }
     
-    /* 使用非阻塞方式获取互斥锁，避免超时 */
-    if (rt_mutex_take(temp_mutex, 10) != RT_EOK)  /* 等待10ms */
-    {
-        /* 如果无法获取锁，直接返回当前值（可能稍微旧一点，但不会超时）*/
-        *temp = g_current_temp;
-        return RT_EOK;
-    }
-    
+    /* 直接读取全局变量，g_current_temp 是 float 类型，读取是原子的（32位）*/
+    /* 无需互斥锁，避免阻塞协议处理线程 */
     *temp = g_current_temp;
-    rt_mutex_release(temp_mutex);
     
     return RT_EOK;
 }

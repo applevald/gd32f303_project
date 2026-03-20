@@ -6,6 +6,9 @@
 #include "protocol.h"
 #include <rtthread.h>
 
+/* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
+#define PROTOCOL_APP_DEBUG_VERBOSE  0
+
 /* 设备状态结构体 */
 typedef struct {
     uint8_t mode;           /* 工作模式 */
@@ -24,6 +27,7 @@ extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
  */
 static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
 {
+#if PROTOCOL_APP_DEBUG_VERBOSE
     rt_kprintf("[App] Received CMD: 0x%02X, Data len: %d\n", cmd, len);
     
     /* 打印接收到的数据（用于调试）*/
@@ -36,100 +40,76 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         }
         rt_kprintf("\n");
     }
+#endif
     
     switch (cmd)
     {
             
         case CMD_HEARTBEAT:
-            /* 心跳包 */
-            rt_kprintf("[App] Heartbeat received\n");
-            uint8_t read_data;
-            read_data = data[0];//幻数，接收到的数据区
-            protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
-        break;
+            /* 心跳包 - 直接回复，无调试输出以提高性能 */
+            {
+                uint8_t read_data = data[0];  /* 幻数 */
+                protocol_send_response_ok(CMD_HEARTBEAT, &read_data, sizeof(read_data));
+            }
+            break;
         case CMD_SET_FAN:
-        //TODO:需要根据协议再完善具体细节
             /* 设置风扇速度命令 */
             {
                 uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高 4 位表示风扇 ID */
-                uint8_t fan_id = data[0]&0x0F;
+                uint8_t fan_id = data[0] & 0x0F;
                 uint8_t fan_speed = data[1]; 
 
+#if PROTOCOL_APP_DEBUG_VERBOSE
                 rt_kprintf("[App] Set fan: fan_id=%d, speed=%d\n", fan_id, fan_speed);
+#endif
 
                 if(fan_id_high == 0){
-                if(fan_id > 0 && fan_id <= 2){
-                    fan_id = 0;
-                }else if(fan_id > 2 && fan_id <= 6){
-                    fan_id = 1;
-                }else if(fan_id > 6 && fan_id <= 10){
-                    fan_id = 2;
-                }else if(fan_id > 10 && fan_id <= 14){
-                    fan_id = 3;
+                    if(fan_id > 0 && fan_id <= 2){
+                        fan_id = 0;
+                    }else if(fan_id > 2 && fan_id <= 6){
+                        fan_id = 1;
+                    }else if(fan_id > 6 && fan_id <= 10){
+                        fan_id = 2;
+                    }else if(fan_id > 10 && fan_id <= 14){
+                        fan_id = 3;
+                    }
                 }
-                }else{
-
-                }
-
 
                 int result = fan_set_speed(fan_id, fan_speed);
-
-                /* 回显响应：使用原命令码和原数据 */
-                rt_kprintf("[App] Sending response: CMD=0x%02X, fan_id=%d, speed=%d\n", 
-                          CMD_SET_FAN, data[0], data[1]);
                 
                 data[1] = (result == 0 ? 0x00 : 0x01); /* 成功返回 0x00，失败返回 0x01 */
-                /* 使用 protocol_send_response_ok 发送响应 */
                 protocol_send_response_ok(CMD_SET_FAN, data, 2);
             }
             break;
             
         case CMD_FAN_GETSPEED:
             /* 获取风扇转速查询命令 */
-            rt_kprintf("[App] Fan speed query command received\n");
             {
-                /* 启动测量（会阻塞约1秒）*/
-                extern rt_err_t start_fan_speed_measure(void);
-                if (start_fan_speed_measure() != RT_EOK)
-                {
-                    rt_kprintf("[App] Fan speed measurement failed\n");
-                    protocol_send_response_error(CMD_FAN_GETSPEED, 0x02);
-                    break;
-                }
-                
-                /* 获取测量结果 */
+                /* 风扇转速已在后台定时器中持续更新，直接获取结果 */
                 uint8_t fan_data[28] = {0};
                 extern int get_fan_speed(uint8_t *data, uint16_t len);
                 int data_len = get_fan_speed(fan_data, sizeof(fan_data));
     
-                    /* 打印调试信息 */
-                    rt_kprintf("[App] Fan speed data: ");
-                    for (int i = 0; i < data_len && i < 28; i++)
-                    {
-                        rt_kprintf("%02X ", fan_data[i]);
-                        if (i % 2 == 1) rt_kprintf(" ");
-                    }
-                    rt_kprintf("\n");
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                /* 打印调试信息 */
+                rt_kprintf("[App] Fan speed data: ");
+                for (int i = 0; i < data_len && i < 28; i++)
+                {
+                    rt_kprintf("%02X ", fan_data[i]);
+                    if (i % 2 == 1) rt_kprintf(" ");
+                }
+                rt_kprintf("\n");
+#endif
                     
-                    /* 发送应答（包含风扇转速数据）*/
-                    protocol_send_response_ok(CMD_FAN_GETSPEED, fan_data, data_len);
+                /* 发送应答（包含风扇转速数据）*/
+                protocol_send_response_ok(CMD_FAN_GETSPEED, fan_data, data_len);
             }
             break;
             
         case CMD_FAN_STATUS:
             /* 获取风扇状态查询命令 */
-            rt_kprintf("[App] Fan status query command received\n");
             {
-                /* 先启动测量（会阻塞约1秒）*/
-                extern rt_err_t start_fan_speed_measure(void);
-                if (start_fan_speed_measure() != RT_EOK)
-                {
-                    rt_kprintf("[App] Fan speed measurement failed\n");
-                    protocol_send_response_error(CMD_FAN_STATUS, 0x02);
-                    break;
-                }
-                
-                /* 获取目标速度数组 */
+                /* 风扇状态已在后台定时器中持续更新，直接获取结果 */
                 extern const uint8_t* fan_get_target_speed_array(void);
                 const uint8_t *target_speed = fan_get_target_speed_array();
                 
@@ -138,80 +118,88 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
                 int data_len = get_fan_status(fan_status_data, sizeof(fan_status_data), target_speed);
                 
-                    /* 打印调试信息 */
-                    rt_kprintf("[App] Fan status data: ");
-                    for (int i = 0; i < data_len && i < 14; i++)
-                    {
-                        rt_kprintf("%02X ", fan_status_data[i]);
-                    }
-                    rt_kprintf("\n");
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                /* 打印调试信息 */
+                rt_kprintf("[App] Fan status data: ");
+                for (int i = 0; i < data_len && i < 14; i++)
+                {
+                    rt_kprintf("%02X ", fan_status_data[i]);
+                }
+                rt_kprintf("\n");
+#endif
                     
-                    /* 发送应答（包含风扇状态数据）*/
-                    protocol_send_response_ok(CMD_FAN_STATUS, fan_status_data, data_len);
+                /* 发送应答（包含风扇状态数据）*/
+                protocol_send_response_ok(CMD_FAN_STATUS, fan_status_data, data_len);
             }
             break;
             
         case CMD_COLOR_LIGHT:
             /* 三色灯控制命令 */
+            {
                 uint8_t color_get = data[0];
                 uint8_t breath_mode_get = data[1];
+                
+#if PROTOCOL_APP_DEBUG_VERBOSE
                 rt_kprintf("[App] Color light command: color=0x%02X, breath_mode=0x%02X\n", color_get, breath_mode_get);
+#endif
                
                 /* 调用灯光控制函数 */
                 extern rt_err_t ws2811_protocol_control(rt_uint8_t color, rt_uint8_t breath_mode);
                 ws2811_protocol_control(color_get, breath_mode_get);
-                    /* 发送成功应答 */
-                    protocol_send_response_ok(cmd, data, 2);
+                /* 发送成功应答 */
+                protocol_send_response_ok(cmd, data, 2);
+            }
             break;
 
         case CMD_LIGHT_BAR:
             /* 进度灯条控制命令 */
+            {
                 uint8_t progress = data[0];           /* 字节0: 进度值(0-100) */
                 uint8_t color_param = data[1];
                 uint8_t breath_mode = data[2];        /* 字节3: 呼吸参数 */
                 
-                rt_kprintf("[App] Light bar command: progress=%d, color=0x%04X, breath=0x%02X\n", 
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                rt_kprintf("[App] Light bar command: progress=%d, color=0x%02X, breath=0x%02X\n", 
                           progress, color_param, breath_mode);
+#endif
                 
                 /* 调用灯条控制函数 */
                 extern rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint8_t color_param, rt_uint8_t breath_mode);
                 ws2812_bar_protocol_control(progress, color_param, breath_mode);
-                    /* 发送成功应答，回显原始数据 */
+                /* 发送成功应答，回显原始数据 */
                 protocol_send_response_ok(cmd, data, 3);
+            }
             break;
         
         case CMD_ALL_STATUS:
-            float current_temp;
-            uint8_t all_status_data[18] = {0}; /* NTC温度(2) + 目标温度(1) + NTC状态(1) + 风扇状态(14) = 18字节 */
-            extern rt_err_t temp_measure_get_temperature(float *temp);
-            temp_measure_get_temperature(&current_temp);
-            uint16_t temp_data = (uint16_t)(current_temp * 10);
-            all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度高字节 */
-            all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度低字节 */
-            //目标温度-Todo:  
-            extern uint32_t get_goal_temp(void);
-            uint32_t goal_temp_value;
-            goal_temp_value =get_goal_temp();
-            all_status_data[2] = goal_temp_value;   
-
-            extern void heater_get_state(uint8_t *state);
-            uint8_t heater_state;    
-            heater_get_state(&heater_state);
-            all_status_data[3] = heater_state;/* NTC状态 */
-
-            /* 先启动测量（会阻塞约1秒）*/
-                extern rt_err_t start_fan_speed_measure(void);
-                start_fan_speed_measure();
+            {
+                float current_temp;
+                uint8_t all_status_data[18] = {0}; /* NTC温度(2) + 目标温度(1) + NTC状态(1) + 风扇状态(14) = 18字节 */
+                extern rt_err_t temp_measure_get_temperature(float *temp);
+                temp_measure_get_temperature(&current_temp);
+                uint16_t temp_data = (uint16_t)(current_temp * 10);
+                all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度高字节 */
+                all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度低字节 */
                 
-                /* 获取目标速度数组 */
+                extern uint32_t get_goal_temp(void);
+                uint32_t goal_temp_value;
+                goal_temp_value = get_goal_temp();
+                all_status_data[2] = (uint8_t)goal_temp_value;   
+
+                extern void heater_get_state(uint8_t *state);
+                uint8_t heater_state;    
+                heater_get_state(&heater_state);
+                all_status_data[3] = heater_state;  /* NTC状态 */
+
+                /* 风扇状态已在后台定时器中持续更新，直接获取结果 */
                 extern const uint8_t* fan_get_target_speed_array(void);
                 const uint8_t *target_speed = fan_get_target_speed_array();
 
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
                 get_fan_status(all_status_data + 4, 14, target_speed);
-            
-            protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 18);
-
+                
+                protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 18);
+            }
             break;
 
         case CMD_TEMP_SET:
@@ -233,65 +221,65 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             /* 天窗控制命令 */
             {
                 uint8_t control_value = 0;
-                    if (data[0] == 0x00)
-                    {
-                        /* 关闭天窗 */
-                        rt_kprintf("[App] Window close command\n");
-                        extern rt_err_t window_close(void);
-                        window_close();
-                    }
-                    else if (data[0] == 0x01)
-                    {
-                        /* 打开天窗 */
-                        rt_kprintf("[App] Window open command\n");
-                        extern rt_err_t window_open(void);
-                        window_open();
-                    }
-                    else if (data[0] == 0x02)
-                    {
-                        /* 查询状态 - 只返回状态，不执行任何操作 */
-                        rt_kprintf("[App] Window status query\n");
-                        extern uint8_t window_get_protocol_status(void);
-                        control_value = window_get_protocol_status();
-                        rt_kprintf("[App] Window status: %d\n", control_value);
-                        /* 立即返回状态 */
-                        protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
-                        break;
-                    }
-                    else
-                    {
-                        /* 未知命令 */
-                        rt_kprintf("[App] Unknown window command: 0x%02X\n", data[0]);
-                        protocol_send_response_error(cmd, 0x01);
-                        break;
-                    }
-
-                    /* 获取天窗协议状态并返回（用于关闭/打开命令） */
+                
+                if (data[0] == 0x00)
+                {
+                    /* 关闭天窗 */
+                    extern rt_err_t window_close(void);
+                    window_close();
+                }
+                else if (data[0] == 0x01)
+                {
+                    /* 打开天窗 */
+                    extern rt_err_t window_open(void);
+                    window_open();
+                }
+                else if (data[0] == 0x02)
+                {
+                    /* 查询状态 - 只返回状态，不执行任何操作 */
                     extern uint8_t window_get_protocol_status(void);
                     control_value = window_get_protocol_status();
-
-                    rt_kprintf("[App] Window status: %d\n", control_value);
-
-                    /* 发送成功应答 */
+                    /* 立即返回状态 */
                     protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
+                    break;
+                }
+                else
+                {
+                    /* 未知命令 */
+                    protocol_send_response_error(cmd, 0x01);
+                    break;
+                }
+
+                /* 获取天窗协议状态并返回（用于关闭/打开命令） */
+                extern uint8_t window_get_protocol_status(void);
+                control_value = window_get_protocol_status();
+
+                /* 发送成功应答 */
+                protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
             }
             break;
 
         case CMD_RESPONSE_ERROR:
             /* 收到主板的应答（失败）*/
+#if PROTOCOL_APP_DEBUG_VERBOSE
             if (len >= 1)
             {
                 rt_kprintf("[App] Response ERROR received, error code: 0x%02X\n", data[0]);
             }
+#endif
             break;
             
         default:
+#if PROTOCOL_APP_DEBUG_VERBOSE
             rt_kprintf("[App] Unknown command: 0x%02X\n", cmd);
+#endif
             /* 立即发送错误响应，不使用protocol_send_response_error避免额外开销 */
-            uint8_t error_data[2];
-            error_data[0] = cmd;         /* 原命令码 */
-            error_data[1] = 0xFF;        /* 错误码 */
-            protocol_send_response_ok(CMD_RESPONSE_ERROR, error_data, 2);
+            {
+                uint8_t error_data[2];
+                error_data[0] = cmd;         /* 原命令码 */
+                error_data[1] = 0xFF;        /* 错误码 */
+                protocol_send_response_ok(CMD_RESPONSE_ERROR, error_data, 2);
+            }
             break;
     }
 }
