@@ -29,13 +29,14 @@
 /* 温度传感器参数 (根据实际传感器调整) */
 #define TEMP_SENSOR_R25         100000.0f       /* 25℃时的电阻值(Ω) NTC100K */
 #define TEMP_SENSOR_B           3950.0f         /* NTC B值 (常见值, 需核对规格书) */
-/* 
+/*
  * 修正说明：
- * 根据ADC读数3340 (2.69V) 推算，在室温(NTC约100k)下，分压电阻约为 22kΩ 
- * 计算推导：R_ntc = R_series * V / (Vcc - V) => 100k = R_series * 4.4 => R_series ≈ 22.7k
- * 这里暂时设定为 22k，如果仍有误差请检查硬件原理图的分压电阻值
+ * 根据ADC读数3927 (3.163V) 在室温25°C下反推：
+ * V_ntc = VCC × R_ntc / (R_series + R_ntc)
+ * 3.163 = 3.3 × 100k / (R_series + 100k)
+ * R_series ≈ 4.3kΩ，取标准值 4.7kΩ
  */
-#define TEMP_SERIES_R           22000.0f        /* 串联电阻阻值(Ω) */
+#define TEMP_SERIES_R           4700.0f         /* 串联电阻阻值(Ω) */
 
 /* 静态变量 */
 static float g_current_temp = 0.0f;             /* 当前温度值 (℃) */

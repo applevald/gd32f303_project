@@ -134,16 +134,15 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 const uint8_t *target_speed = fan_get_target_speed_array();
                 
                 /* 获取风扇状态 */
-                uint8_t fan_status_data[28] = {0};
+                uint8_t fan_status_data[14] = {0};
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
                 int data_len = get_fan_status(fan_status_data, sizeof(fan_status_data), target_speed);
                 
                     /* 打印调试信息 */
                     rt_kprintf("[App] Fan status data: ");
-                    for (int i = 0; i < data_len && i < 28; i++)
+                    for (int i = 0; i < data_len && i < 14; i++)
                     {
                         rt_kprintf("%02X ", fan_status_data[i]);
-                        if (i % 2 == 1) rt_kprintf(" ");
                     }
                     rt_kprintf("\n");
                     
@@ -183,12 +182,12 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         
         case CMD_ALL_STATUS:
             float current_temp;
-            uint8_t all_status_data[32] = {0}; /* 示例数据区，实际长度和内容根据需求调整 */
+            uint8_t all_status_data[18] = {0}; /* NTC温度(2) + 目标温度(1) + NTC状态(1) + 风扇状态(14) = 18字节 */
             extern rt_err_t temp_measure_get_temperature(float *temp);
             temp_measure_get_temperature(&current_temp);
-            uint16_t temp_data = (uint16_t)(current_temp * 100);
-            all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度整数部分 */
-            all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度小数部分 */
+            uint16_t temp_data = (uint16_t)(current_temp * 10);
+            all_status_data[0] = (uint8_t)(temp_data >> 8);   /* 温度高字节 */
+            all_status_data[1] = (uint8_t)(temp_data & 0xFF);  /* 温度低字节 */
             //目标温度-Todo:  
             extern uint32_t get_goal_temp(void);
             uint32_t goal_temp_value;
@@ -198,7 +197,7 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             extern void heater_get_state(uint8_t *state);
             uint8_t heater_state;    
             heater_get_state(&heater_state);
-            all_status_data[3] = heater_state;//NTC状态
+            all_status_data[3] = heater_state;/* NTC状态 */
 
             /* 先启动测量（会阻塞约1秒）*/
                 extern rt_err_t start_fan_speed_measure(void);
@@ -209,9 +208,9 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 const uint8_t *target_speed = fan_get_target_speed_array();
 
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
-                get_fan_status(all_status_data + 4, 28, target_speed);
+                get_fan_status(all_status_data + 4, 14, target_speed);
             
-            protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 32);
+            protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 18);
 
             break;
 

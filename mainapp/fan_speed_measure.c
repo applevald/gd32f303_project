@@ -256,24 +256,25 @@ uint16_t get_fan_rpm(uint8_t fan_id)
 
 /**
  * @brief  获取风扇状态数据（按协议格式）
- * @param  data: 输出缓冲区（至少28字节）
+ * @param  data: 输出缓冲区（至少14字节）
  * @param  len: 缓冲区长度
  * @param  fan_target_speed: 风扇目标速度数组（百分比 0-100，14个元素）
- * @retval 实际填充的字节数
+ * @retval 实际填充的字节数（14字节，按风扇ID顺序排列，每个风扇1字节状态）
  */
 int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
 {
-    if (data == RT_NULL || len < 28 || fan_target_speed == RT_NULL)
+    if (data == RT_NULL || len < 14 || fan_target_speed == RT_NULL)
     {
         return 0;
     }
     
     rt_memset(data, 0, len);
     
-    /* 填充风扇状态数据 - 优化版本，减少浮点运算 */
+    /* 填充风扇状态数据 - 按风扇ID顺序，每个风扇1字节状态 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
-        /* 快速读取RPM，减少函数调用开销 */
+        /* 先更新RPM，确保获取最新转速值 */
+        update_fan_rpm(i);
         uint16_t rpm = g_fan_fg[i].rpm;
         uint8_t fan_id = i + 1;
         uint8_t target_speed = fan_target_speed[i];  /* 目标速度百分比 */
@@ -327,12 +328,11 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
             }
         }
         
-        /* 按协议格式填充：ID(高字节) + 状态(低字节) */
-        data[i * 2] = fan_id;
-        data[i * 2 + 1] = status;
+        /* 按风扇ID顺序填充状态值，每个风扇1字节 */
+        data[i] = status;
     }
     
-    return 28;
+    return 14;
 }
 
 /**
