@@ -321,11 +321,12 @@ MSH_CMD_EXPORT(ws2812_bar_test, Set all LEDs color: ws2812_bar_test <r> <g> <b>)
  * @param  red: 红色分量(0-255)
  * @param  green: 绿色分量(0-255)
  * @param  blue: 蓝色分量(0-255)
- * @note   根据进度点亮对应数量的LED
+ * @note   根据进度点亮对应数量的LED（顺序反转：从最后一个灯开始）
  */
 void ws2812_bar_set_progress(rt_uint8_t progress, rt_uint8_t red, rt_uint8_t green, rt_uint8_t blue)
 {
     rt_uint8_t i;
+    rt_uint8_t reversed_index;
     rt_uint8_t leds_to_light;
     
     /* 限制进度值范围 */
@@ -343,10 +344,11 @@ void ws2812_bar_set_progress(rt_uint8_t progress, rt_uint8_t red, rt_uint8_t gre
         ws2812_bar_set_color(i, 0, 0, 0);
     }
     
-    /* 点亮对应数量的LED */
+    /* 点亮对应数量的LED（从最后一个灯开始往前点亮）*/
     for (i = 0; i < leds_to_light; i++)
     {
-        ws2812_bar_set_color(i, red, green, blue);
+        reversed_index = WS2812_LED_NUM - 1 - i;
+        ws2812_bar_set_color(reversed_index, red, green, blue);
     }
 }
 
@@ -547,18 +549,21 @@ rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint8_t color_param
         
         /* 显示进度条：背景色 + 前景色 */
         rt_uint8_t i;
+        rt_uint8_t reversed_index;
         rt_uint8_t leds_to_light = (progress * WS2812_LED_NUM) / 100;
         
-        /* 点亮前景色LED */
+        /* 点亮前景色LED - 从最后一个灯开始往前点亮（顺序反转）*/
         for (i = 0; i < leds_to_light; i++)
         {
-            ws2812_bar_set_color(i, fg_r, fg_g, fg_b);
+            reversed_index = WS2812_LED_NUM - 1 - i;
+            ws2812_bar_set_color(reversed_index, fg_r, fg_g, fg_b);
         }
         
-        /* 点亮背景色LED */
+        /* 点亮背景色LED - 从前面开始（顺序反转）*/
         for (i = leds_to_light; i < WS2812_LED_NUM; i++)
         {
-            ws2812_bar_set_color(i, bg_r, bg_g, bg_b);
+            reversed_index = WS2812_LED_NUM - 1 - i;
+            ws2812_bar_set_color(reversed_index, bg_r, bg_g, bg_b);
         }
         
         ws2812_bar_update();

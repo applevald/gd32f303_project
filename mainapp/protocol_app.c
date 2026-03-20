@@ -186,10 +186,9 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 goal_temp_value = get_goal_temp();
                 all_status_data[2] = (uint8_t)goal_temp_value;   
 
-                extern void heater_get_state(uint8_t *state);
-                uint8_t heater_state;    
-                heater_get_state(&heater_state);
-                all_status_data[3] = heater_state;  /* NTC状态 */
+                /* 获取NTC状态: 0-正常, 1-短路异常, 2-开路异常 */
+                extern uint8_t temp_measure_get_ntc_status(void);
+                all_status_data[3] = temp_measure_get_ntc_status();
 
                 /* 风扇状态已在后台定时器中持续更新，直接获取结果 */
                 extern const uint8_t* fan_get_target_speed_array(void);

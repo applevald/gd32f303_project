@@ -47,8 +47,13 @@
 
 /* 静态变量 */
 static float g_current_temp = 0.0f;             /* 当前温度值 (℃) */
+static uint8_t g_ntc_status = 0;                /* NTC状态: 0-正常, 1-短路, 2-开路 */
 static rt_mutex_t temp_mutex = RT_NULL;         /* 温度数据互斥锁 */
 rt_mutex_t adc_mutex = RT_NULL;          /* ADC 访问互斥锁 - 全局变量 */
+
+/* NTC状态检测阈值 */
+#define NTC_SHORT_THRESHOLD    100             /* ADC值低于此值判定为短路 */
+#define NTC_OPEN_THRESHOLD     4000            /* ADC值高于此值判定为开路 */
 
 /**
  * @brief  初始化ADC温度采集
@@ -203,7 +208,24 @@ static void temp_measure_thread_entry(void *parameter)
         /* 1. 读取ADC值 */
         adc_value = adc_read_average();
         
-        /* 2. 转换为电压 */
+        /* 2. 检测NTC状态 */
+        if (adc_value < NTC_SHORT_THRESHOLD)
+        {
+            /* ADC值过低，判定为短路 */
+            g_ntc_status = 1;
+        }
+        else if (adc_value > NTC_OPEN_THRESHOLD)
+        {
+            /* ADC值过高，判定为开路 */
+            g_ntc_status = 2;
+        }
+        else
+        {
+            /* 正常范围 */
+            g_ntc_status = 0;
+        }
+        
+        /* 3. 转换为电压 */
         voltage = adc_to_voltage(adc_value);
         
         /* 3. 转换为温度 */
@@ -252,6 +274,17 @@ rt_err_t temp_measure_get_temperature(float *temp)
     *temp = g_current_temp;
     
     return RT_EOK;
+}
+
+/**
+ * @brief  获取NTC传感器状态
+ * @return 0 - 正常, 1 - 短路异常, 2 - 开路异常
+ * @note   短路：ADC值很低（NTC两端电压接近0V）
+ *         开路：ADC值很高（NTC两端电压接近VCC）
+ */
+uint8_t temp_measure_get_ntc_status(void)
+{
+    return g_ntc_status;
 }
 
 /**

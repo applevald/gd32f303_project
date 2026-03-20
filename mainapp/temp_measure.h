@@ -25,6 +25,12 @@ int temp_measure_init(void);
  */
 rt_err_t temp_measure_get_temperature(float *temp);
 
+/**
+ * @brief  获取NTC传感器状态
+ * @return 0 - 正常, 1 - 短路异常, 2 - 开路异常
+ */
+uint8_t temp_measure_get_ntc_status(void);
+
 /* 全局 ADC 互斥锁，供多个模块共享 */
 extern rt_mutex_t adc_mutex;
 
