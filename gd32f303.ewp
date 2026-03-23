@@ -2315,6 +2315,9 @@
             <name>$PROJ_DIR$\mainapp\protocol.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\mainapp\iap.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\mainapp\protocol.h</name>
         </file>
         <file>

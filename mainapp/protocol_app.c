@@ -4,6 +4,7 @@
  */
 
 #include "protocol.h"
+#include "iap.h"
 #include <rtthread.h>
 
 /* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
@@ -55,13 +56,37 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_SET_FAN:
             /* 设置风扇速度命令 */
             {
-                uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高 4 位表示风扇 ID */
+                uint8_t fan_id_high = (data[0] & 0xF0) >> 4; /* 高 4 位表示风扇 ID模式 */
                 uint8_t fan_id = data[0] & 0x0F;
                 uint8_t fan_speed = data[1]; 
 
 #if PROTOCOL_APP_DEBUG_VERBOSE
                 rt_kprintf("[App] Set fan: fan_id=%d, speed=%d\n", fan_id, fan_speed);
 #endif
+
+                /* 检查是否为热腔风扇且加热中 */
+                /* 热腔风扇定义：单风扇模式ID 7-10，或组模式组编号2 */
+                extern uint8_t is_heating_active(void);
+                uint8_t is_chamber_fan = 0;
+                
+                if (fan_id_high == 0)
+                {
+                    /* 单风扇模式：ID 7-10为热腔风扇 */
+                    is_chamber_fan = (fan_id >= 7 && fan_id <= 10);
+                }
+                else if (fan_id_high == 1)
+                {
+                    /* 组模式：组编号2为热腔风扇组(FAN_CHAMBER = [7,8,9,10]) */
+                    is_chamber_fan = (fan_id == 2);
+                }
+                
+                if (is_heating_active() && is_chamber_fan)
+                {
+                    /* 加热中，拒绝设置热腔风扇速度 */
+                    data[1] = 0x02; /* 返回错误码2：拒绝设定 */
+                    protocol_send_response_ok(CMD_SET_FAN, data, 2);
+                    break;
+                }
 
                 if(fan_id_high == 0){
                     if(fan_id > 0 && fan_id <= 2){
@@ -255,6 +280,41 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
 
                 /* 发送成功应答 */
                 protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
+            }
+            break;
+
+        case CMD_IAP_REQUEST:
+            /* IAP升级请求 (0xAA) */
+            {
+                extern iap_result_t iap_handle_request(uint8_t *data, uint16_t len);
+                iap_result_t result = iap_handle_request(data, len);
+                
+                /* 返回结果码 */
+                protocol_send_response_ok(CMD_IAP_REQUEST, (uint8_t*)&result, 1);
+            }
+            break;
+
+        case CMD_IAP_PACKET:
+            /* IAP数据包 (0xAB) */
+            {
+                extern iap_result_t iap_handle_packet(uint8_t *data, uint16_t len, uint16_t *next_seq);
+                uint16_t next_seq = 0;
+                iap_result_t result = iap_handle_packet(data, len, &next_seq);
+                
+                if (result == IAP_RESULT_COMPLETE)
+                {
+                    /* 升级完成，返回0xAA命令结果码2 */
+                    uint8_t response[1] = {IAP_RESULT_COMPLETE};
+                    protocol_send_response_ok(CMD_IAP_REQUEST, response, 1);
+                }
+                else
+                {
+                    /* 返回下一包序列号（小端字节序） */
+                    uint8_t response[2];
+                    response[0] = next_seq & 0xFF;
+                    response[1] = (next_seq >> 8) & 0xFF;
+                    protocol_send_response_ok(CMD_IAP_PACKET, response, 2);
+                }
             }
             break;
 

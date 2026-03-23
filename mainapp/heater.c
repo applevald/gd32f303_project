@@ -3,12 +3,38 @@
 #include "gd32f30x_gpio.h"
 #include "gd32f30x_rcu.h"
 
+/* 热腔风扇ID范围 (7-10) */
+#define FAN_CHAMBER_START   7
+#define FAN_CHAMBER_END     10
+
 uint32_t goal_temp = 0; // 目标温度，超过该温度时关闭加热器
+static uint8_t g_heating_active = 0; // 加热是否激活（目标温度>0）
 static rt_thread_t heater_thread = RT_NULL;
 
 uint32_t get_goal_temp(void)
 {
     return goal_temp;
+}
+
+/**
+ * @brief 检查加热是否激活（目标温度>0）
+ * @return 1: 加热中, 0: 未加热
+ */
+uint8_t is_heating_active(void)
+{
+    return g_heating_active;
+}
+
+/**
+ * @brief 设置热腔风扇(7-10)为满速
+ */
+static void set_chamber_fans_full_speed(void)
+{
+    extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
+    for (uint8_t fan_id = FAN_CHAMBER_START; fan_id <= FAN_CHAMBER_END; fan_id++)
+    {
+        fan_set_speed(fan_id, 100);
+    }
 }
 
 void heater_set_state(uint8_t state)
@@ -42,7 +68,23 @@ uint8_t set_goal_temp(uint32_t temp)
     if(temp > 120){
         return 2; // 温度过高错误
     }
+    
+    uint8_t was_heating = g_heating_active;
+    
     goal_temp = temp;
+    
+    if (temp > 0)
+    {
+        /* 开始加热：设置加热激活标志，热腔风扇满速 */
+        g_heating_active = 1;
+        set_chamber_fans_full_speed();
+    }
+    else
+    {
+        /* 停止加热：清除加热激活标志 */
+        g_heating_active = 0;
+    }
+    
     return 0;
 }
 

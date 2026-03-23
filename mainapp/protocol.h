@@ -41,6 +41,8 @@
 #define CMD_ALL_STATUS          0xA6    /* 读取所有状态 */
 #define CMD_TEMP_SET            0xA7    /* 设置目标温度 */
 #define CMD_WINDOWS_CONTROL     0xA8    /* 天窗控制 */
+#define CMD_IAP_REQUEST         0xAA    /* IAP升级请求 */
+#define CMD_IAP_PACKET          0xAB    /* IAP数据包 */
 #define CMD_RESPONSE_ERROR      0xAE    /* 应答失败 */
 
 /* 协议帧结构体 */
