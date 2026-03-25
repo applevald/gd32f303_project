@@ -43,6 +43,7 @@
 #define CMD_WINDOWS_CONTROL     0xA8    /* 天窗控制 */
 #define CMD_IAP_REQUEST         0xAA    /* IAP升级请求 */
 #define CMD_IAP_PACKET          0xAB    /* IAP数据包 */
+#define CMD_VERSION_QUERY       0xAC    /* 版本号查询 */
 #define CMD_RESPONSE_ERROR      0xAE    /* 应答失败 */
 
 /* 协议帧结构体 */

@@ -10,6 +10,13 @@
 /* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
 #define PROTOCOL_APP_DEBUG_VERBOSE  0
 
+/* 固件版本号定义
+ * 格式: Vxxx = 高字节.低字节
+ * 例如: V1.0 = 0x01 0x00 (0x0100)
+ * 修改此处更新固件版本号
+ */
+#define FIRMWARE_VERSION            0x0100    /* V1.0 (0x0100 = 1.00) */
+
 /* 设备状态结构体 */
 typedef struct {
     uint8_t mode;           /* 工作模式 */
@@ -315,6 +322,21 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     response[1] = (next_seq >> 8) & 0xFF;
                     protocol_send_response_ok(CMD_IAP_PACKET, response, 2);
                 }
+            }
+            break;
+
+        case CMD_VERSION_QUERY:
+            /* 版本号查询 (0xAC) */
+            {
+                uint8_t version_data[2];
+                version_data[0] = (FIRMWARE_VERSION >> 8) & 0xFF;   /* 版本号高字节 */
+                version_data[1] = FIRMWARE_VERSION & 0xFF;          /* 版本号低字节 */
+                
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                rt_kprintf("[App] Version query: V%d (0x%04X)\n", FIRMWARE_VERSION, FIRMWARE_VERSION);
+#endif
+                
+                protocol_send_response_ok(CMD_VERSION_QUERY, version_data, 2);
             }
             break;
 
