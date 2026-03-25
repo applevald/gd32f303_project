@@ -1,19 +1,25 @@
 /*
  * @file temp_measure.c
- * @brief 温度测量模块 - 通过ADC采集温度传感器数据
+ * @brief 温度测量模块 - 通过ADC采集NTC温度传感器数据（查表法）
  * 
  * 硬件配置：
  *   - ADC引脚：PC0 (ADC012_IN10)
- *   - ADC外设：ADC12
+ *   - ADC外设：ADC0
  *   - 采样通道：ADC_CHANNEL_10
  * 
  * 温度计算：
- *   - 使用NTC热敏电阻或线性温度传感器
- *   - 根据具体传感器型号调整转换公式
+ *   - 使用NTC100K热敏电阻 (B=3950)
+ *   - 查表法获取温度，每5度一个小区间
+ *   - 线性插值获取精确温度值
+ * 
+ * 参考：T450控制板软硬件接口文档V0.2
+ *   - 电阻阻值：100KΩ
+ *   - 阻值精度：±1%
+ *   - 电阻B值：3950±1%
+ *   - 测温范围：-50℃ - 125℃
  */
 
 #include <rtthread.h>
-#include <math.h>
 #include "gd32f30x.h"
 #include "gd32f30x_adc.h"
 #include "gd32f30x_gpio.h"
@@ -21,7 +27,7 @@
 
 /* ADC配置参数 */
 #define ADC_TEMP_CHANNEL        ADC_CHANNEL_10  /* PC0对应ADC0通道10 */
-#define ADC_PERIPH              ADC0            /* 修正为ADC0 */
+#define ADC_PERIPH              ADC0            /* 使用ADC0 */
 #define ADC_SAMPLE_COUNT        10              /* 多次采样取平均 */
 #define ADC_VREF                3.3f            /* 参考电压(V) */
 #define ADC_RESOLUTION          4096            /* 12位ADC分辨率 */
@@ -29,31 +35,103 @@
 /* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
 #define TEMP_MEASURE_DEBUG_VERBOSE  0
 
-/* 温度传感器参数 (根据实际传感器调整) */
-#define TEMP_SENSOR_R25         100000.0f       /* 25℃时的电阻值(Ω) NTC100K */
-#define TEMP_SENSOR_B           3950.0f         /* NTC B值 (常见值, 需核对规格书) */
 /*
+ * NTC传感器参数
  * 电路接法：VCC(3.3V) -- R_series -- ADC点 -- NTC -- GND
- * ADC测量的是R_series和NTC之间的电压（即NTC两端电压）
+ * ADC测量的是NTC两端的电压
  * 
- * 根据实际测量校准：
- * ADC=3380 (2.72V) 对应室温25°C
+ * 根据实测校准：
+ * 室温25℃时 ADC ≈ 3839 (V_adc ≈ 3.09V)
+ * 反推Rs = 100kΩ * (3.3 - 3.09) / 3.09 ≈ 6.8kΩ
  * 
- * 验证：当NTC=100kΩ(25°C)时
- * V_ntc = 3.3 × 100k / (R_series + 100k) = 2.72V
- * 解得 R_series ≈ 21.4kΩ，取标准值 22kΩ
+ * 计算：
+ * V_adc = VCC * R_ntc / (R_ntc + R_s)
+ * R_ntc = R_s * V_adc / (VCC - V_adc)
  */
-#define TEMP_SERIES_R           22000.0f        /* 串联电阻阻值(Ω) - 22kΩ */
+#define TEMP_SERIES_R           6800.0f         /* 串联电阻阻值(Ω) - 6.8kΩ (实测校准) */
+#define TEMP_SENSOR_R25         100000.0f       /* 25℃时的电阻值(Ω) NTC100K */
+#define TEMP_SENSOR_B           3950.0f         /* NTC B值 */
+
+/* 查表法参数 */
+#define TEMP_TABLE_MIN          (-50)           /* 最低温度 (℃) */
+#define TEMP_TABLE_MAX          (125)           /* 最高温度 (℃) */
+#define TEMP_TABLE_STEP         5               /* 温度步进 (℃) */
+#define TEMP_TABLE_SIZE         ((TEMP_TABLE_MAX - TEMP_TABLE_MIN) / TEMP_TABLE_STEP + 1)
+
+/* NTC状态检测阈值
+ * 电路：VCC -- R_s -- ADC -- NTC -- GND
+ * - NTC短路(0Ω): ADC直接接地 → ADC低(接近0)
+ * - NTC开路(∞Ω): ADC通过R_s接VCC → ADC高(接近4095)
+ */
+#define NTC_SHORT_THRESHOLD     100             /* ADC值低于此值判定为短路 */
+#define NTC_OPEN_THRESHOLD      4000            /* ADC值高于此值判定为开路 */
 
 /* 静态变量 */
 static float g_current_temp = 0.0f;             /* 当前温度值 (℃) */
 static uint8_t g_ntc_status = 0;                /* NTC状态: 0-正常, 1-短路, 2-开路 */
 static rt_mutex_t temp_mutex = RT_NULL;         /* 温度数据互斥锁 */
-rt_mutex_t adc_mutex = RT_NULL;          /* ADC 访问互斥锁 - 全局变量 */
+rt_mutex_t adc_mutex = RT_NULL;                 /* ADC 访问互斥锁 - 全局变量 */
 
-/* NTC状态检测阈值 */
-#define NTC_SHORT_THRESHOLD    100             /* ADC值低于此值判定为短路 */
-#define NTC_OPEN_THRESHOLD     4000            /* ADC值高于此值判定为开路 */
+/*
+ * NTC100K B=3950 温度-电阻查找表
+ * 温度范围：-50℃ 到 125℃，每5度一个点
+ * 电阻值单位：欧姆(Ω)
+ * 
+ * 计算公式：R = R25 * exp(B * (1/T - 1/T25))
+ * 其中：R25 = 100000Ω (25℃时的标称电阻), B = 3950, T25 = 298.15K
+ * 
+ * 注意：表中电阻值从低温到高温递减（电阻随温度升高而减小）
+ *       25℃时电阻 = 100000Ω (NTC100K的定义)
+ */
+static const float ntc_resistance_table[TEMP_TABLE_SIZE] = {
+    /* -50℃ ~ -30℃ : 低温区，电阻极大 */
+    8586128.0f,      /* -50℃ */
+    5825362.0f,      /* -45℃ */
+    4018597.0f,      /* -40℃ */
+    2815768.0f,      /* -35℃ */
+    2002039.0f,      /* -30℃ */
+    
+    /* -25℃ ~ 0℃ : 冷区 */
+    1443169.0f,      /* -25℃ */
+    1053847.0f,      /* -20℃ */
+    778981.0f,       /* -15℃ */
+    582457.0f,       /* -10℃ */
+    440260.0f,       /* -5℃ */
+    336206.0f,       /* 0℃ */
+    
+    /* 5℃ ~ 25℃ : 常温区 */
+    259246.0f,       /* 5℃ */
+    201746.0f,       /* 10℃ */
+    158371.0f,       /* 15℃ */
+    125353.0f,       /* 20℃ */
+    100000.0f,       /* 25℃ - NTC100K标称值 */
+    
+    /* 30℃ ~ 60℃ : 温热区 */
+    80371.0f,        /* 30℃ */
+    65055.0f,        /* 35℃ */
+    53015.0f,        /* 40℃ */
+    43481.0f,        /* 45℃ */
+    35882.0f,        /* 50℃ */
+    29784.0f,        /* 55℃ */
+    24862.0f,        /* 60℃ */
+    
+    /* 65℃ ~ 95℃ : 热区 */
+    20864.0f,        /* 65℃ */
+    17598.0f,        /* 70℃ */
+    14917.0f,        /* 75℃ */
+    12703.0f,        /* 80℃ */
+    10867.0f,        /* 85℃ */
+    9336.0f,         /* 90℃ */
+    8054.0f,         /* 95℃ */
+    
+    /* 100℃ ~ 125℃ : 高温区 */
+    6975.0f,         /* 100℃ */
+    6064.0f,         /* 105℃ */
+    5291.0f,         /* 110℃ */
+    4633.0f,         /* 115℃ */
+    4071.0f,         /* 120℃ */
+    3588.0f          /* 125℃ */
+};
 
 /**
  * @brief  初始化ADC温度采集
@@ -64,7 +142,7 @@ static void adc_temp_init(void)
     rcu_periph_clock_enable(RCU_GPIOC);
     rcu_periph_clock_enable(RCU_ADC0);
     
-    /* 2. 配置ADC时钟：PCLK2/6 = 108MHz/6 = 18MHz (ADC最大14MHz，这里会被内部分频) */
+    /* 2. 配置ADC时钟：PCLK2/6 = 108MHz/6 = 18MHz */
     rcu_adc_clock_config(RCU_CKADC_CKAPB2_DIV6);
     
     /* 3. 配置PC0为模拟输入 */
@@ -95,6 +173,8 @@ static void adc_temp_init(void)
     adc_calibration_enable(ADC_PERIPH);
     
     rt_kprintf("[TempMeasure] ADC initialized (PC0, Channel 10)\n");
+    rt_kprintf("[TempMeasure] Lookup table: %d entries, range %dC to %dC\n", 
+               TEMP_TABLE_SIZE, TEMP_TABLE_MIN, TEMP_TABLE_MAX);
 }
 
 /**
@@ -139,8 +219,9 @@ static uint16_t adc_read_raw(void)
 static uint16_t adc_read_average(void)
 {
     uint32_t sum = 0;
+    int i;
     
-    for (int i = 0; i < ADC_SAMPLE_COUNT; i++)
+    for (i = 0; i < ADC_SAMPLE_COUNT; i++)
     {
         sum += adc_read_raw();
         rt_thread_mdelay(5);  /* 采样间隔 */
@@ -150,47 +231,91 @@ static uint16_t adc_read_average(void)
 }
 
 /**
- * @brief  ADC值转换为电压
+ * @brief  ADC值转换为NTC电阻值
  * @param  adc_value: ADC采样值
- * @return 电压值(V)
+ * @return NTC电阻值(Ω)
+ * @note   分压电路：VCC -- R_series -- ADC -- NTC -- GND
+ *         ADC测量NTC两端电压
+ *         V_adc = VCC * R_ntc / (R_ntc + R_s)
+ *         R_ntc = R_s * V_adc / (VCC - V_adc)
  */
-static float adc_to_voltage(uint16_t adc_value)
+static float adc_to_resistance(uint16_t adc_value)
 {
-    return (float)adc_value * ADC_VREF / ADC_RESOLUTION;
+    float v_adc;    /* NTC两端电压 */
+    
+    /* ADC值转换为电压 */
+    v_adc = (float)adc_value * ADC_VREF / ADC_RESOLUTION;
+    
+    /* 防止除零错误 */
+    if (v_adc >= ADC_VREF - 0.01f)
+    {
+        return 100000000.0f;  /* 返回极大值表示NTC开路（ADC接VCC） */
+    }
+    if (v_adc <= 0.01f)
+    {
+        return 0.0f;  /* 返回0表示NTC短路（ADC接GND） */
+    }
+    
+    /* 计算NTC电阻：R_ntc = R_s * V_adc / (VCC - V_adc) */
+    return TEMP_SERIES_R * v_adc / (ADC_VREF - v_adc);
 }
 
 /**
- * @brief  电压值转换为温度 (NTC热敏电阻)
- * @param  voltage: 输入电压(V)
+ * @brief  通过查表法将NTC电阻转换为温度
+ * @param  resistance: NTC电阻值(Ω)
  * @return 温度值(℃)
- * @note   分压电路：VCC - R_series - NTC - GND，ADC测量NTC两端电压
- *         计算公式：
- *         1. R_ntc = R_series * voltage / (VCC - voltage)
- *         2. 1/T = 1/T0 + (1/B) * ln(R_ntc/R0)
- *         其中：T0 = 298.15K (25℃), R0 = R25
+ * @note   使用线性插值在查找表区间内获取精确温度
  */
-static float voltage_to_temperature(float voltage)
+static float resistance_to_temperature_lookup(float resistance)
 {
-    float r_ntc;        /* NTC当前电阻 */
-    float temp_k;       /* 温度(开尔文) */
-    float temp_c;       /* 温度(摄氏度) */
+    int i;
+    float temp_low, temp_high;
+    float r_low, r_high;
+    float ratio;
     
-    /* 防止除零错误 */
-    if (voltage >= ADC_VREF)
+    /* 边界检查 */
+    if (resistance >= ntc_resistance_table[0])
     {
-        voltage = ADC_VREF - 0.01f;
+        /* 电阻超过表中最小温度对应的值，返回最低温度 */
+        return (float)TEMP_TABLE_MIN;
     }
     
-    /* 1. 计算NTC电阻值 */
-    r_ntc = TEMP_SERIES_R * voltage / (ADC_VREF - voltage);
+    if (resistance <= ntc_resistance_table[TEMP_TABLE_SIZE - 1])
+    {
+        /* 电阻低于表中最高温度对应的值，返回最高温度 */
+        return (float)TEMP_TABLE_MAX;
+    }
     
-    /* 2. 使用B参数方程计算温度 */
-    temp_k = 1.0f / (1.0f / 298.15f + (1.0f / TEMP_SENSOR_B) * logf(r_ntc / TEMP_SENSOR_R25));
+    /* 在表中查找电阻所在的区间 */
+    /* 注意：表中电阻值从低温到高温递减，所以要用反向比较 */
+    for (i = 0; i < TEMP_TABLE_SIZE - 1; i++)
+    {
+        if (resistance <= ntc_resistance_table[i] && 
+            resistance >= ntc_resistance_table[i + 1])
+        {
+            /* 找到区间，进行线性插值 */
+            temp_low = (float)(TEMP_TABLE_MIN + i * TEMP_TABLE_STEP);
+            temp_high = (float)(TEMP_TABLE_MIN + (i + 1) * TEMP_TABLE_STEP);
+            
+            r_low = ntc_resistance_table[i];
+            r_high = ntc_resistance_table[i + 1];
+            
+            /* 线性插值：温度与电阻在小区间内近似线性关系 */
+            /* 由于电阻随温度升高而降低，插值公式需要考虑这个特性 */
+            /* ratio = (r_low - resistance) / (r_low - r_high) */
+            /* temperature = temp_low + ratio * (temp_high - temp_low) */
+            
+            /* 但实际上电阻与温度是对数关系，在小区间内用线性插值会有误差 */
+            /* 更准确的方法是对温度进行插值，基于电阻的对数关系 */
+            
+            /* 简化的线性插值（对于5度小区间足够精确） */
+            ratio = (r_low - resistance) / (r_low - r_high);
+            return temp_low + ratio * (temp_high - temp_low);
+        }
+    }
     
-    /* 3. 转换为摄氏度 */
-    temp_c = temp_k - 273.15f;
-    
-    return temp_c;
+    /* 未找到（不应该到达这里） */
+    return 0.0f;
 }
 
 /**
@@ -200,15 +325,19 @@ static float voltage_to_temperature(float voltage)
 static void temp_measure_thread_entry(void *parameter)
 {
     uint16_t adc_value;
-    float voltage;
+    float resistance;
     float temperature;
     
     while (1)
     {
-        /* 1. 读取ADC值 */
+        /* 1. 读取ADC平均值 */
         adc_value = adc_read_average();
         
-        /* 2. 检测NTC状态 */
+        /* 2. 检测NTC状态
+         * 电路：VCC -- Rs -- ADC -- NTC -- GND
+         * - NTC短路：ADC接GND，ADC值低
+         * - NTC开路：ADC通过Rs接VCC，ADC值高
+         */
         if (adc_value < NTC_SHORT_THRESHOLD)
         {
             /* ADC值过低，判定为短路 */
@@ -225,13 +354,13 @@ static void temp_measure_thread_entry(void *parameter)
             g_ntc_status = 0;
         }
         
-        /* 3. 转换为电压 */
-        voltage = adc_to_voltage(adc_value);
+        /* 3. ADC值转换为NTC电阻值 */
+        resistance = adc_to_resistance(adc_value);
         
-        /* 3. 转换为温度 */
-        temperature = voltage_to_temperature(voltage);
+        /* 4. 查表法获取温度 */
+        temperature = resistance_to_temperature_lookup(resistance);
         
-        /* 4. 保存温度值 */
+        /* 5. 保存温度值 */
         if (temp_mutex)
         {
             rt_mutex_take(temp_mutex, RT_WAITING_FOREVER);
@@ -240,19 +369,21 @@ static void temp_measure_thread_entry(void *parameter)
         }
         
 #if TEMP_MEASURE_DEBUG_VERBOSE
-        /* 5. 调试输出 (兼容不支持%f的情况) */
-        int val_int = (int)voltage;
-        int val_frac = (int)((voltage - val_int) * 1000); // 3位小数
-        
-        int temp_int = (int)temperature;
-        int temp_frac = (int)((temperature - temp_int) * 100); // 2位小数
-        if (temp_frac < 0) temp_frac = -temp_frac;
-
-        rt_kprintf("[TempMeasure] ADC=%d, Voltage=%d.%03dV, Temp=%d.%02dC\n", 
-                   adc_value, val_int, val_frac, temp_int, temp_frac);
+        /* 6. 调试输出 (兼容不支持%f的情况) */
+        {
+            int res_int = (int)(resistance / 1000);  /* kΩ */
+            int res_frac = (int)((resistance / 1000 - res_int) * 10);
+            
+            int temp_int = (int)temperature;
+            int temp_frac = (int)((temperature - temp_int) * 100);
+            if (temp_frac < 0) temp_frac = -temp_frac;
+            
+            rt_kprintf("[TempMeasure] ADC=%d, R=%d.%dkΩ, Temp=%d.%02dC, Status=%d\n", 
+                       adc_value, res_int, res_frac, temp_int, temp_frac, g_ntc_status);
+        }
 #endif
         
-        /* 6. 延时 */
+        /* 7. 延时 */
         rt_thread_mdelay(1000);  /* 每秒采集一次 */
     }
 }
@@ -270,7 +401,6 @@ rt_err_t temp_measure_get_temperature(float *temp)
     }
     
     /* 直接读取全局变量，g_current_temp 是 float 类型，读取是原子的（32位）*/
-    /* 无需互斥锁，避免阻塞协议处理线程 */
     *temp = g_current_temp;
     
     return RT_EOK;
@@ -279,12 +409,36 @@ rt_err_t temp_measure_get_temperature(float *temp)
 /**
  * @brief  获取NTC传感器状态
  * @return 0 - 正常, 1 - 短路异常, 2 - 开路异常
- * @note   短路：ADC值很低（NTC两端电压接近0V）
- *         开路：ADC值很高（NTC两端电压接近VCC）
  */
 uint8_t temp_measure_get_ntc_status(void)
 {
     return g_ntc_status;
+}
+
+/**
+ * @brief  获取温度测量详细数据（用于调试）
+ * @param  adc_val: ADC原始值输出指针
+ * @param  resistance: NTC电阻值输出指针(Ω)
+ * @param  temp: 温度值输出指针(℃)
+ * @return RT_EOK: 成功, -RT_ERROR: 失败
+ */
+rt_err_t temp_measure_get_detail(uint16_t *adc_val, float *resistance, float *temp)
+{
+    uint16_t adc_value;
+    float res;
+    
+    /* 读取ADC值 */
+    adc_value = adc_read_average();
+    
+    /* 转换为电阻 */
+    res = adc_to_resistance(adc_value);
+    
+    /* 输出数据 */
+    if (adc_val) *adc_val = adc_value;
+    if (resistance) *resistance = res;
+    if (temp) *temp = g_current_temp;
+    
+    return RT_EOK;
 }
 
 /**
@@ -333,10 +487,66 @@ int temp_measure_init(void)
     /* 4. 启动线程 */
     rt_thread_startup(tid);
     
-    rt_kprintf("[TempMeasure] Module initialized\n");
+    rt_kprintf("[TempMeasure] Module initialized (Lookup Table Method)\n");
     return RT_EOK;
 }
 
 /* 使用 INIT_APP_EXPORT 自动初始化 */
 INIT_APP_EXPORT(temp_measure_init);
+
+/* =============== Shell 调试命令 =============== */
+
+/**
+ * @brief Shell命令：读取温度传感器原始ADC值
+ */
+static void cmd_temp_adc(int argc, char **argv)
+{
+    uint16_t adc_value;
+    float resistance;
+    float voltage;
+    
+    /* 读取ADC平均值 */
+    adc_value = adc_read_average();
+    
+    /* 转换为电压 */
+    voltage = (float)adc_value * ADC_VREF / ADC_RESOLUTION;
+    
+    /* 转换为电阻 */
+    resistance = adc_to_resistance(adc_value);
+    
+    rt_kprintf("=== Temperature Sensor Debug ===\n");
+    rt_kprintf("ADC Raw:    %d\n", adc_value);
+    rt_kprintf("Voltage:    %d.%03d V\n", (int)voltage, (int)((voltage - (int)voltage) * 1000));
+    rt_kprintf("Resistance: %d kOhm\n", (int)(resistance / 1000));
+    rt_kprintf("NTC Status: %d (%s)\n", g_ntc_status, 
+               g_ntc_status == 0 ? "Normal" : 
+               (g_ntc_status == 1 ? "Short" : "Open"));
+    rt_kprintf("Temperature: %d.%d C\n", (int)g_current_temp, 
+               (int)((g_current_temp - (int)g_current_temp) * 10));
+    rt_kprintf("================================\n");
+    rt_kprintf("Rs = %d ohm (calibrated)\n", (int)TEMP_SERIES_R);
+    rt_kprintf("If 25C expected with Rs=6800, ADC~3839 is correct\n");
+}
+MSH_CMD_EXPORT_ALIAS(cmd_temp_adc, temp_adc, Read temperature ADC value);
+
+/**
+ * @brief Shell命令：设置串联电阻值（用于校准）
+ * @note  用法: temp_set_r <resistance_in_ohm>
+ */
+static void cmd_temp_set_r(int argc, char **argv)
+{
+    if (argc >= 2)
+    {
+        /* 注意：这只是临时修改运行时的值，不会保存 */
+        rt_kprintf("Note: Series resistance is fixed at compile time.\n");
+        rt_kprintf("Current: %d ohm (22000)\n", (int)TEMP_SERIES_R);
+        rt_kprintf("To change, modify TEMP_SERIES_R in source code.\n");
+    }
+    else
+    {
+        rt_kprintf("Current series resistance: %d ohm\n", (int)TEMP_SERIES_R);
+        rt_kprintf("Usage: temp_set_r <resistance>\n");
+    }
+}
+MSH_CMD_EXPORT_ALIAS(cmd_temp_set_r, temp_set_r, Show series resistance value);
 

@@ -135,14 +135,26 @@ uint16_t iap_calculate_crc16(uint8_t *data, uint32_t len)
 
 /**
  * @brief 设置升级标志
+ * @note  会保留配置区中的固件大小和CRC信息
  */
 void iap_set_upgrade_flag(uint32_t flag)
 {
-    /* 先擦除配置页 */
+    /* 先读取并保存固件信息，防止擦除后丢失 */
+    uint32_t saved_firmware_size = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE));
+    uint32_t saved_firmware_crc  = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC));
+    
+    rt_kprintf("[IAP] Saving firmware info before erase: size=%d, crc=0x%04X\n", 
+               saved_firmware_size, (uint16_t)saved_firmware_crc);
+    
+    /* 擦除配置页 */
     flash_erase_page(CONFIG_ADDR);
     
     /* 写入升级标志 */
     flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_UPGRADE_FLAG, flag);
+    
+    /* 恢复固件大小和CRC */
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE, saved_firmware_size);
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC, saved_firmware_crc);
     
 #if IAP_DEBUG_VERBOSE
     rt_kprintf("[IAP] Set upgrade flag: 0x%08X\n", flag);
@@ -506,3 +518,82 @@ static void cmd_iap_status(int argc, char **argv)
     rt_kprintf("  Backup:     0x%08X - 0x%08X (%dKB)\n", BACKUP_ADDR, BACKUP_ADDR + BACKUP_SIZE - 1, BACKUP_SIZE/1024);
 }
 MSH_CMD_EXPORT_ALIAS(cmd_iap_status, iap_status, Show IAP status);
+
+/* Shell命令：复制当前APP区到备用区 */
+static void cmd_iap_backup(int argc, char **argv)
+{
+    rt_kprintf("=== IAP Backup: Copy APP -> Backup ===\n");
+    rt_kprintf("APP    region: 0x%08X - 0x%08X (%dKB)\n",
+               APP_ADDR, APP_ADDR + APP_SIZE - 1, APP_SIZE / 1024);
+    rt_kprintf("Backup region: 0x%08X - 0x%08X (%dKB)\n",
+               BACKUP_ADDR, BACKUP_ADDR + BACKUP_SIZE - 1, BACKUP_SIZE / 1024);
+    rt_kprintf("\n");
+
+    if (argc < 2 || rt_strcmp(argv[1], "confirm") != 0)
+    {
+        rt_kprintf("WARNING: This will ERASE the backup region and copy current APP into it!\n");
+        rt_kprintf("Type 'iap_backup confirm' to proceed\n");
+        return;
+    }
+
+    /* 1. 擦除备用区（按页逐页擦除，GD32F303 页大小2KB） */
+    rt_kprintf("[IAP] Step 1: Erasing backup region (%d pages)...\n", BACKUP_SIZE / 2048);
+    uint32_t pages = BACKUP_SIZE / 2048;
+    for (uint32_t i = 0; i < pages; i++)
+    {
+        uint32_t erase_addr = BACKUP_ADDR + i * 2048;
+        if (flash_erase_page(erase_addr) != 0)
+        {
+            rt_kprintf("[IAP] Erase FAILED at 0x%08X, page %d\n", erase_addr, i);
+            return;
+        }
+        if ((i % 10) == 0)
+        {
+            rt_kprintf("[IAP] Erase progress: %d/%d pages\n", i, pages);
+        }
+    }
+    rt_kprintf("[IAP] Erase done.\n");
+
+    /* 2. 按字（4字节）复制APP区到备用区 */
+    rt_kprintf("[IAP] Step 2: Copying APP to backup...\n");
+    uint32_t total_words = APP_SIZE / 4;
+    for (uint32_t i = 0; i < total_words; i++)
+    {
+        uint32_t src_addr  = APP_ADDR   + i * 4;
+        uint32_t dst_addr  = BACKUP_ADDR + i * 4;
+        uint32_t word_data = *((volatile uint32_t *)src_addr);
+
+        if (flash_write_word(dst_addr, word_data) != 0)
+        {
+            rt_kprintf("[IAP] Write FAILED at 0x%08X (word %d)\n", dst_addr, i);
+            return;
+        }
+
+        /* 每2KB打印一次进度 */
+        if ((i % 512) == 0)
+        {
+            rt_kprintf("[IAP] Copy progress: %dKB / %dKB\n", i / 256, APP_SIZE / 1024);
+        }
+    }
+    rt_kprintf("[IAP] Copy done.\n");
+
+    /* 3. CRC校验：比较APP区与备用区 */
+    rt_kprintf("[IAP] Step 3: Verifying...\n");
+    uint16_t crc_app    = iap_calculate_crc16((uint8_t *)APP_ADDR,    APP_SIZE);
+    uint16_t crc_backup = iap_calculate_crc16((uint8_t *)BACKUP_ADDR, APP_SIZE);
+
+    if (crc_app != crc_backup)
+    {
+        rt_kprintf("[IAP] CRC MISMATCH! APP=0x%04X, Backup=0x%04X\n", crc_app, crc_backup);
+        rt_kprintf("[IAP] Backup FAILED!\n");
+        return;
+    }
+
+    /* 4. 将固件信息写入配置区，供后续 iap_upgrade 使用 */
+    iap_set_firmware_info(APP_SIZE, crc_backup);
+
+    rt_kprintf("[IAP] CRC OK: 0x%04X\n", crc_backup);
+    rt_kprintf("[IAP] Backup SUCCESS! %dKB copied to backup region.\n", APP_SIZE / 1024);
+    rt_kprintf("[IAP] You can now use 'iap_upgrade confirm' to restore this backup.\n");
+}
+MSH_CMD_EXPORT_ALIAS(cmd_iap_backup, iap_backup, Copy current APP to backup region);

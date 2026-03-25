@@ -3,9 +3,8 @@
 #include "gd32f30x_gpio.h"
 #include "gd32f30x_rcu.h"
 
-/* 热腔风扇ID范围 (7-10) */
-#define FAN_CHAMBER_START   7
-#define FAN_CHAMBER_END     10
+/* 热腔风扇硬件组ID (对应协议ID 7-10) */
+#define FAN_CHAMBER_GROUP_ID    2
 
 uint32_t goal_temp = 0; // 目标温度，超过该温度时关闭加热器
 static uint8_t g_heating_active = 0; // 加热是否激活（目标温度>0）
@@ -26,15 +25,14 @@ uint8_t is_heating_active(void)
 }
 
 /**
- * @brief 设置热腔风扇(7-10)为满速
+ * @brief 设置热腔风扇(硬件组ID=2，对应协议ID 7-10)为满速
+ * @note  fan_set_speed 接受硬件组ID：0(协议1-2), 1(协议3-6), 2(协议7-10), 3(协议11-14)
  */
 static void set_chamber_fans_full_speed(void)
 {
     extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
-    for (uint8_t fan_id = FAN_CHAMBER_START; fan_id <= FAN_CHAMBER_END; fan_id++)
-    {
-        fan_set_speed(fan_id, 100);
-    }
+    /* 热腔风扇对应硬件组ID = 2，直接传组ID，无需循环 */
+    fan_set_speed(2, 100);
 }
 
 void heater_set_state(uint8_t state)

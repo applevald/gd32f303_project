@@ -53,7 +53,7 @@ int main(void)
     
     while (1)
     {
-        LOG_E("test....\n");
+        LOG_E("testing....\n");
         rt_thread_mdelay(5000);
 
     }

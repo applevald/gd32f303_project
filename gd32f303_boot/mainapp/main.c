@@ -2,22 +2,23 @@
  * @file main.c
  * @brief Bootloader主程序 - 支持IAP固件升级
  * 
- * Flash布局 (GD32F303xC, 256KB):
- * +----------------+----------------+------------------+
- * | 区域           | 地址范围       | 大小             |
- * +----------------+----------------+------------------+
- * | Bootloader     | 0x08000000 -   | 48KB             |
- * |                | 0x0800BFFF     |                  |
- * +----------------+----------------+------------------+
- * | 配置区域       | 0x0800C000 -   | 2KB              |
- * | (升级标志等)   | 0x0800C7FF     |                  |
- * +----------------+----------------+------------------+
- * | APP区域        | 0x0800C800 -   | 约103KB          |
- * |                | 0x0801FFFF     |                  |
- * +----------------+----------------+------------------+
- * | 备用区域       | 0x08020000 -   | 128KB            |
- * | (新固件存放)   | 0x0803FFFF     |                  |
- * +----------------+----------------+------------------+
+ * Flash布局 (GD32F303xC, 256KB, 页大小2KB):
+ * +----------------+----------------+------------------+------------------+
+ * | 区域           | 地址范围       | 大小             | 页范围           |
+ * +----------------+----------------+------------------+------------------+
+ * | Bootloader     | 0x08000000 -   | 48KB (24页)      | 页0  ~ 页23      |
+ * |                | 0x0800BFFF     |                  |                  |
+ * +----------------+----------------+------------------+------------------+
+ * | 配置区域       | 0x0800C000 -   | 2KB  (1页)       | 页24             |
+ * | (升级标志等)   | 0x0800C7FF     |                  |                  |
+ * +----------------+----------------+------------------+------------------+
+ * | APP区域        | 0x0800C800 -   | 102KB (51页)     | 页25 ~ 页75      |
+ * |                | 0x080257FF     |                  |                  |
+ * +----------------+----------------+------------------+------------------+
+ * | 备用区域       | 0x08025800 -   | 104KB (52页)     | 页76 ~ 页127     |
+ * | (新固件存放)   | 0x0803FFFF     |                  |                  |
+ * +----------------+----------------+------------------+------------------+
+ * 总计: 48+2+102+104 = 256KB，所有边界均2KB页对齐
  */
 
 #include <rtthread.h>
@@ -35,10 +36,10 @@
 #define CONFIG_SIZE            (2 * 1024)
 
 #define APP_ADDR               0x0800C800
-#define APP_SIZE               (103 * 1024)
+#define APP_SIZE               (102 * 1024)        /* 102KB (51页, 2KB页对齐) */
 
-#define BACKUP_ADDR            0x08020000
-#define BACKUP_SIZE            (128 * 1024)
+#define BACKUP_ADDR            0x08026000          /* 第76页起始 */
+#define BACKUP_SIZE            (104 * 1024)        /* 104KB (52页, 2KB页对齐) */
 
 /* 配置区域偏移 */
 #define CONFIG_OFFSET_UPGRADE_FLAG    0x000
@@ -156,11 +157,27 @@ static int flash_write_word(uint32_t addr, uint32_t data)
 
 /**
  * @brief 清除升级标志
+ * @note  会保留配置区中的固件大小和CRC信息，以便后续再次升级
  */
 static void clear_upgrade_flag(void)
 {
+    /* 先读取并保存固件信息，防止擦除后丢失 */
+    uint32_t saved_firmware_size = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE));
+    uint32_t saved_firmware_crc  = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC));
+    
+    LOG_I("Saving firmware info: size=%d, crc=0x%04X", saved_firmware_size, (uint16_t)saved_firmware_crc);
+    
+    /* 擦除配置页 */
     flash_erase_page(CONFIG_ADDR);
+    
+    /* 写入升级完成标志 */
     flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_UPGRADE_FLAG, UPGRADE_FLAG_DONE);
+    
+    /* 恢复固件大小和CRC，以便后续再次升级 */
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE, saved_firmware_size);
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC, saved_firmware_crc);
+    
+    LOG_I("Upgrade flag cleared, firmware info preserved");
 }
 
 /**
