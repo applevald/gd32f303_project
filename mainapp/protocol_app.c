@@ -5,6 +5,7 @@
 
 #include "protocol.h"
 #include "iap.h"
+#include "windows.h"
 #include <rtthread.h>
 
 /* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
@@ -27,6 +28,21 @@ typedef struct {
 static device_state_t g_device_state = {0};
 
 extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
+
+/**
+ * @brief 天窗状态变化回调函数
+ * @param status 协议状态码
+ * @note 当限位开关状态变化时，主动上报给上位机
+ */
+static void window_status_change_callback(uint8_t status)
+{
+#if PROTOCOL_APP_DEBUG_VERBOSE
+    rt_kprintf("[App] Window status changed, reporting: 0x%02X\n", status);
+#endif
+    
+    /* 主动上报天窗状态（命令码 0xA8）*/
+    protocol_send_frame(CMD_WINDOWS_CONTROL, &status, 1);
+}
 /**
  * @brief 命令处理回调函数
  * @param cmd 命令码
@@ -256,23 +272,25 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 if (data[0] == 0x00)
                 {
                     /* 关闭天窗 */
-                    extern rt_err_t window_close(void);
                     window_close();
                 }
                 else if (data[0] == 0x01)
                 {
                     /* 打开天窗 */
-                    extern rt_err_t window_open(void);
                     window_open();
                 }
                 else if (data[0] == 0x02)
                 {
                     /* 查询状态 - 只返回状态，不执行任何操作 */
-                    extern uint8_t window_get_protocol_status(void);
                     control_value = window_get_protocol_status();
                     /* 立即返回状态 */
                     protocol_send_response_ok(CMD_WINDOWS_CONTROL, &control_value, 1);
                     break;
+                }
+                else if (data[0] == 0x03)
+                {
+                    /* 强制停止天窗动作 */
+                    window_emergency_stop();
                 }
                 else
                 {
@@ -281,8 +299,7 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     break;
                 }
 
-                /* 获取天窗协议状态并返回（用于关闭/打开命令） */
-                extern uint8_t window_get_protocol_status(void);
+                /* 获取天窗协议状态并返回（用于关闭/打开/停止命令） */
                 control_value = window_get_protocol_status();
 
                 /* 发送成功应答 */
@@ -374,6 +391,9 @@ int protocol_app_init(void)
     g_device_state.mode = 0;
     g_device_state.device_status = 0;
     g_device_state.data_value = 0;
+    
+    /* 注册天窗状态变化回调函数 */
+    window_register_status_callback(window_status_change_callback);
     
     /* 初始化协议模块 */
     if (protocol_init(protocol_command_handler) != RT_EOK)

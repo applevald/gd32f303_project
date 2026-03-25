@@ -29,25 +29,31 @@ typedef enum {
 } window_error_t;
 
 /**
+ * @brief 天窗状态变化回调函数类型
+ * @param status 协议状态码
+ */
+typedef void (*window_status_callback_t)(uint8_t status);
+
+/**
  * @brief  天窗模块初始化
  * @return RT_EOK: 成功, -RT_ERROR: 失败
  */
 int windows_init(void);
 
 /**
- * @brief  天窗打开
- * @return RT_EOK: 成功, -RT_ERROR: 失败
+ * @brief  天窗打开（非阻塞）
+ * @return RT_EOK: 成功启动, -RT_ERROR: 失败
  */
 rt_err_t window_open(void);
 
 /**
- * @brief  天窗关闭
- * @return RT_EOK: 成功, -RT_ERROR: 失败
+ * @brief  天窗关闭（非阻塞）
+ * @return RT_EOK: 成功启动, -RT_ERROR: 失败
  */
 rt_err_t window_close(void);
 
 /**
- * @brief  紧急停止
+ * @brief  紧急停止（非阻塞）
  */
 void window_emergency_stop(void);
 
@@ -68,6 +74,12 @@ window_error_t window_get_error(void);
  * @return 协议状态码 (0-5)
  */
 uint8_t window_get_protocol_status(void);
+
+/**
+ * @brief  注册状态变化回调函数
+ * @param  callback: 回调函数指针
+ */
+void window_register_status_callback(window_status_callback_t callback);
 
 #ifdef __cplusplus
 }

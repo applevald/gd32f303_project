@@ -1,6 +1,6 @@
 /*
  * @file windows.c
- * @brief 天窗控制模块 - 基于HRBB33电机驱动器
+ * @brief 天窗控制模块 - 基于HRBB33电机驱动器（非阻塞模式）
  * 
  * 硬件配置：
  *   限位开关：
@@ -20,6 +20,11 @@
  *   - 天窗关闭：驱动电机正转，触发限位1停止
  *   - 天窗打开：驱动电机反转，触发限位2停止
  *   - 运行过程中监控电流和故障信号，异常时立即停止
+ * 
+ * 非阻塞模式：
+ *   - window_open() / window_close() 启动电机后立即返回
+ *   - 后台监控线程负责检测限位开关、电流、故障、超时
+ *   - 限位开关状态变化时主动上报
  */
 
 #include <rtthread.h>
@@ -27,6 +32,8 @@
 #include "gd32f30x_rcu.h"
 #include "gd32f30x_adc.h"
 #include "temp_measure.h"
+#include "protocol.h"
+#include "windows.h"
 
 /* ==================== 引脚定义 ==================== */
 /* 限位开关 (输入) */
@@ -63,27 +70,53 @@
 #define CURRENT_THRESHOLD_B     2048    /* 电机B电流阈值 (ADC值，对应约1.65V) */
 #define MOTOR_TIMEOUT_MS        30000   /* 电机运行超时时间 (30秒) */
 #define CURRENT_CHECK_INTERVAL  50      /* 电流检测间隔 (毫秒) */
+#define LIMIT_SWITCH_DEBOUNCE   3       /* 限位开关消抖次数 */
 
-/* ==================== 状态定义 ==================== */
-typedef enum {
-    WINDOW_IDLE = 0,        /* 空闲 */
-    WINDOW_OPENING,         /* 正在打开 */
-    WINDOW_CLOSING,         /* 正在关闭 */
-    WINDOW_ERROR            /* 错误状态 */
-} window_state_t;
-
-typedef enum {
-    WINDOW_OK = 0,          /* 正常 */
-    WINDOW_ERR_OVERCURRENT_A,   /* 电机A过流 */
-    WINDOW_ERR_OVERCURRENT_B,   /* 电机B过流 */
-    WINDOW_ERR_FAULT,           /* 驱动器故障 */
-    WINDOW_ERR_TIMEOUT          /* 超时 */
-} window_error_t;
+/* ==================== 前向声明 ==================== */
+static void window_monitor_thread_entry(void *parameter);
 
 /* ==================== 全局变量 ==================== */
 static window_state_t g_window_state = WINDOW_IDLE;
 static window_error_t g_window_error = WINDOW_OK;
 static rt_mutex_t window_mutex = RT_NULL;
+static rt_thread_t window_monitor_thread = RT_NULL;
+static volatile rt_bool_t g_stop_requested = RT_FALSE;
+static volatile rt_tick_t g_motion_start_time = 0;  /* 运动开始时间 */
+
+/* 限位开关状态记录（用于检测变化）*/
+static uint8_t g_last_limit_state = 0xFF;  /* 初始化为无效值，确保首次检测会上报 */
+
+/* 状态变化回调函数指针 */
+static window_status_callback_t g_status_callback = RT_NULL;
+
+/* ==================== 状态变化上报 ==================== */
+
+/**
+ * @brief  注册状态变化回调函数
+ * @param  callback: 回调函数指针
+ */
+void window_register_status_callback(window_status_callback_t callback)
+{
+    g_status_callback = callback;
+}
+
+/**
+ * @brief  主动上报限位开关状态变化
+ * @param  limit_state: 当前限位开关状态 (0=无触发, 1=关限位触发, 2=开限位触发)
+ */
+static void window_report_limit_change(uint8_t limit_state)
+{
+    /* 获取完整的协议状态码 */
+    uint8_t protocol_status = window_get_protocol_status();
+    
+    rt_kprintf("[Window] Limit switch changed, reporting status: 0x%02X\n", protocol_status);
+    
+    /* 通过回调函数上报状态（如果已注册）*/
+    if (g_status_callback != RT_NULL)
+    {
+        g_status_callback(protocol_status);
+    }
+}
 
 /* ==================== 底层硬件初始化 ==================== */
 
@@ -173,7 +206,23 @@ int windows_init(void)
         return -RT_ERROR;
     }
     
-    rt_kprintf("[Window] Module initialized\n");
+    /* 创建后台监控线程 */
+    window_monitor_thread = rt_thread_create("win_mon",
+                                             window_monitor_thread_entry,
+                                             RT_NULL,
+                                             1024,
+                                             10,
+                                             10);
+    if (window_monitor_thread == RT_NULL)
+    {
+        rt_kprintf("[Window] Failed to create monitor thread\n");
+        return -RT_ERROR;
+    }
+    
+    /* 启动监控线程 */
+    rt_thread_startup(window_monitor_thread);
+    
+    rt_kprintf("[Window] Module initialized (non-blocking mode)\n");
     return RT_EOK;
 }
 INIT_APP_EXPORT(windows_init);
@@ -309,15 +358,144 @@ static rt_bool_t check_fault(void)
     return RT_FALSE;
 }
 
+/* ==================== 后台监控线程 ==================== */
+
+/**
+ * @brief  天窗监控线程 - 非阻塞模式下监控天窗状态
+ */
+static void window_monitor_thread_entry(void *parameter)
+{
+    uint8_t debounce_count = 0;
+    uint8_t last_debounce_state = 0;
+    
+    rt_kprintf("[Window] Monitor thread started\n");
+    
+    while (1)
+    {
+        /* 读取当前限位开关状态 */
+        uint8_t current_limit = check_limit_switch();
+        
+        /* ==================== 限位开关状态变化检测与上报 ==================== */
+        /* 检测限位开关状态变化（无论是否在运动中都要检测）*/
+        if (current_limit != g_last_limit_state)
+        {
+            /* 状态变化，进行消抖 */
+            if (current_limit != last_debounce_state)
+            {
+                last_debounce_state = current_limit;
+                debounce_count = 0;
+            }
+            else
+            {
+                debounce_count++;
+                if (debounce_count >= LIMIT_SWITCH_DEBOUNCE)
+                {
+                    /* 消抖完成，确认状态变化 */
+                    uint8_t old_state = g_last_limit_state;
+                    g_last_limit_state = current_limit;
+                    debounce_count = 0;
+                    
+                    rt_kprintf("[Window] Limit switch changed: %d -> %d\n", old_state, current_limit);
+                    
+                    /* 主动上报状态变化 */
+                    window_report_limit_change(current_limit);
+                }
+            }
+        }
+        else
+        {
+            debounce_count = 0;
+        }
+        
+        /* ==================== 运动状态监控 ==================== */
+        if (g_window_state == WINDOW_OPENING || g_window_state == WINDOW_CLOSING)
+        {
+            /* 检查是否收到停止请求 */
+            if (g_stop_requested)
+            {
+                motor_stop();
+                g_window_state = WINDOW_IDLE;
+                g_stop_requested = RT_FALSE;
+                rt_kprintf("[Window] Stopped by request\n");
+                
+                /* 停止后上报当前状态 */
+                window_report_limit_change(check_limit_switch());
+                continue;
+            }
+            
+            /* 检查是否到达目标限位 */
+            if (g_window_state == WINDOW_CLOSING && current_limit == 1)
+            {
+                motor_stop();
+                g_window_state = WINDOW_IDLE;
+                rt_kprintf("[Window] Closed successfully\n");
+                
+                /* 到达限位，上报状态 */
+                window_report_limit_change(current_limit);
+                continue;
+            }
+            
+            if (g_window_state == WINDOW_OPENING && current_limit == 2)
+            {
+                motor_stop();
+                g_window_state = WINDOW_IDLE;
+                rt_kprintf("[Window] Opened successfully\n");
+                
+                /* 到达限位，上报状态 */
+                window_report_limit_change(current_limit);
+                continue;
+            }
+            
+            /* 检查故障 */
+            if (check_fault())
+            {
+                motor_stop();
+                g_window_state = WINDOW_ERROR;
+                rt_kprintf("[Window] Driver fault detected!\n");
+                
+                /* 故障状态上报 */
+                window_report_limit_change(check_limit_switch());
+                continue;
+            }
+            
+            /* 检查电流 */
+            if (check_overcurrent())
+            {
+                motor_stop();
+                g_window_state = WINDOW_ERROR;
+                rt_kprintf("[Window] Overcurrent detected!\n");
+                
+                /* 过流状态上报 */
+                window_report_limit_change(check_limit_switch());
+                continue;
+            }
+            
+            /* 检查超时 */
+            if ((rt_tick_get() - g_motion_start_time) > rt_tick_from_millisecond(MOTOR_TIMEOUT_MS))
+            {
+                motor_stop();
+                g_window_state = WINDOW_ERROR;
+                g_window_error = WINDOW_ERR_TIMEOUT;
+                rt_kprintf("[Window] Timeout\n");
+                
+                /* 超时状态上报 */
+                window_report_limit_change(check_limit_switch());
+                continue;
+            }
+        }
+        
+        rt_thread_mdelay(CURRENT_CHECK_INTERVAL);
+    }
+}
+
 /* ==================== 对外接口函数 ==================== */
 
 /**
- * @brief  天窗关闭
- * @return RT_EOK: 成功, -RT_ERROR: 失败
+ * @brief  天窗关闭（非阻塞）
+ * @return RT_EOK: 成功启动, -RT_ERROR: 失败
  */
 rt_err_t window_close(void)
 {
-    rt_tick_t start_time;
     uint8_t limit_state;
     
     if (window_mutex == RT_NULL)
@@ -341,68 +519,33 @@ rt_err_t window_close(void)
         return RT_EOK;
     }
     
+    /* 检查是否正在执行其他操作 */
+    if (g_window_state == WINDOW_OPENING || g_window_state == WINDOW_CLOSING)
+    {
+        rt_kprintf("[Window] Busy, current state: %d\n", g_window_state);
+        rt_mutex_release(window_mutex);
+        return -RT_ERROR;
+    }
+    
     rt_kprintf("[Window] Closing...\n");
     g_window_state = WINDOW_CLOSING;
     g_window_error = WINDOW_OK;
+    g_stop_requested = RT_FALSE;
+    g_motion_start_time = rt_tick_get();  /* 记录开始时间 */
     
     /* 启动电机正转 */
     motor_forward();
-    start_time = rt_tick_get();
     
-    /* 循环检测 */
-    while (1)
-    {
-        /* 检查限位开关 */
-        limit_state = check_limit_switch();
-        if (limit_state == 1)
-        {
-            motor_stop();
-            g_window_state = WINDOW_IDLE;
-            rt_kprintf("[Window] Closed successfully\n");
-            rt_mutex_release(window_mutex);
-            return RT_EOK;
-        }
-        
-        /* 检查故障 */
-        if (check_fault())
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        /* 检查电流 */
-        if (check_overcurrent())
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        /* 检查超时 */
-        if ((rt_tick_get() - start_time) > rt_tick_from_millisecond(MOTOR_TIMEOUT_MS))
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            g_window_error = WINDOW_ERR_TIMEOUT;
-            rt_kprintf("[Window] Close timeout\n");
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        rt_thread_mdelay(CURRENT_CHECK_INTERVAL);
-    }
+    rt_mutex_release(window_mutex);
+    return RT_EOK;
 }
 
 /**
- * @brief  天窗打开
- * @return RT_EOK: 成功, -RT_ERROR: 失败
+ * @brief  天窗打开（非阻塞）
+ * @return RT_EOK: 成功启动, -RT_ERROR: 失败
  */
 rt_err_t window_open(void)
 {
-    rt_tick_t start_time;
     uint8_t limit_state;
     
     if (window_mutex == RT_NULL)
@@ -426,69 +569,35 @@ rt_err_t window_open(void)
         return RT_EOK;
     }
     
+    /* 检查是否正在执行其他操作 */
+    if (g_window_state == WINDOW_OPENING || g_window_state == WINDOW_CLOSING)
+    {
+        rt_kprintf("[Window] Busy, current state: %d\n", g_window_state);
+        rt_mutex_release(window_mutex);
+        return -RT_ERROR;
+    }
+    
     rt_kprintf("[Window] Opening...\n");
     g_window_state = WINDOW_OPENING;
     g_window_error = WINDOW_OK;
+    g_stop_requested = RT_FALSE;
+    g_motion_start_time = rt_tick_get();  /* 记录开始时间 */
     
     /* 启动电机反转 */
     motor_reverse();
-    start_time = rt_tick_get();
     
-    /* 循环检测 */
-    while (1)
-    {
-        /* 检查限位开关 */
-        limit_state = check_limit_switch();
-        if (limit_state == 2)
-        {
-            motor_stop();
-            g_window_state = WINDOW_IDLE;
-            rt_kprintf("[Window] Opened successfully\n");
-            rt_mutex_release(window_mutex);
-            return RT_EOK;
-        }
-        
-        /* 检查故障 */
-        if (check_fault())
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        /* 检查电流 */
-        if (check_overcurrent())
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        /* 检查超时 */
-        if ((rt_tick_get() - start_time) > rt_tick_from_millisecond(MOTOR_TIMEOUT_MS))
-        {
-            motor_stop();
-            g_window_state = WINDOW_ERROR;
-            g_window_error = WINDOW_ERR_TIMEOUT;
-            rt_kprintf("[Window] Open timeout\n");
-            rt_mutex_release(window_mutex);
-            return -RT_ERROR;
-        }
-        
-        rt_thread_mdelay(CURRENT_CHECK_INTERVAL);
-    }
+    rt_mutex_release(window_mutex);
+    return RT_EOK;
 }
 
 /**
- * @brief  紧急停止
+ * @brief  紧急停止（非阻塞）
+ * @note   设置停止标志，由监控线程处理实际停止
  */
 void window_emergency_stop(void)
 {
-    motor_stop();
-    g_window_state = WINDOW_IDLE;
-    rt_kprintf("[Window] Emergency stop!\n");
+    g_stop_requested = RT_TRUE;
+    rt_kprintf("[Window] Emergency stop requested\n");
 }
 
 /**
