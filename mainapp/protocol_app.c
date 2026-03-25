@@ -222,7 +222,8 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_ALL_STATUS:
             {
                 float current_temp;
-                uint8_t all_status_data[18] = {0}; /* NTC温度(2) + 目标温度(1) + NTC状态(1) + 风扇状态(14) = 18字节 */
+                /* NTC温度(2) + 目标温度(1) + NTC状态(1) + 风扇状态(14) + 风扇速度(28) = 46字节 */
+                uint8_t all_status_data[46] = {0};
                 extern rt_err_t temp_measure_get_temperature(float *temp);
                 temp_measure_get_temperature(&current_temp);
                 uint16_t temp_data = (uint16_t)(current_temp * 10);
@@ -245,7 +246,17 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 extern int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed);
                 get_fan_status(all_status_data + 4, 14, target_speed);
                 
-                protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 18);
+                /* 添加14个风扇的实际转速(RPM) - 大端模式，每个风扇2字节 */
+                extern uint16_t get_fan_rpm(uint8_t fan_id);
+                for (int i = 0; i < 14; i++)
+                {
+                    uint16_t rpm = get_fan_rpm(i + 1);  /* 风扇ID: 1-14 */
+                    /* 大端模式：高字节在前 */
+                    all_status_data[18 + i * 2] = (uint8_t)(rpm >> 8);      /* RPM高字节 */
+                    all_status_data[18 + i * 2 + 1] = (uint8_t)(rpm & 0xFF); /* RPM低字节 */
+                }
+                
+                protocol_send_response_ok(CMD_ALL_STATUS, all_status_data, 46);
             }
             break;
 
