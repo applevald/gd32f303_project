@@ -12,11 +12,11 @@
 #define PROTOCOL_APP_DEBUG_VERBOSE  0
 
 /* 固件版本号定义
- * 格式: Vxxx = 高字节.低字节
- * 例如: V1.0 = 0x01 0x00 (0x0100)
+ * 格式: 字符串，包含 \0 结尾符
+ * 例如: "0.0326.1.Bate1"
  * 修改此处更新固件版本号
  */
-#define FIRMWARE_VERSION            0x0100    /* V1.0 (0x0100 = 1.00) */
+#define FIRMWARE_VERSION            "1.0.2.Bate2"
 
 /* 设备状态结构体 */
 typedef struct {
@@ -321,11 +321,21 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_IAP_REQUEST:
             /* IAP升级请求 (0xAA) */
             {
-                extern iap_result_t iap_handle_request(uint8_t *data, uint16_t len);
-                iap_result_t result = iap_handle_request(data, len);
+                /* 使用分离函数：先验证参数并发送响应，再执行擦除 */
+                extern iap_result_t iap_prepare_request(uint8_t *data, uint16_t len);
+                extern int iap_start_erase(void);
                 
-                /* 返回结果码 */
+                /* 1. 验证请求参数 */
+                iap_result_t result = iap_prepare_request(data, len);
+                
+                /* 2. 立即发送响应（避免擦除期间上位机超时）*/
                 protocol_send_response_ok(CMD_IAP_REQUEST, (uint8_t*)&result, 1);
+                
+                /* 3. 如果接受升级，执行擦除操作 */
+                if (result == IAP_RESULT_ACCEPT)
+                {
+                    iap_start_erase();
+                }
             }
             break;
 
@@ -338,9 +348,14 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                 
                 if (result == IAP_RESULT_COMPLETE)
                 {
-                    /* 升级完成，返回0xAA命令结果码2 */
+                    /* 升级完成，返回0xAA命令结果码1 */
                     uint8_t response[1] = {IAP_RESULT_COMPLETE};
                     protocol_send_response_ok(CMD_IAP_REQUEST, response, 1);
+                    
+                    /* 延时确保响应发送完成，然后触发升级重启 */
+                    rt_thread_mdelay(500);
+                    extern void iap_trigger_upgrade(void);
+                    iap_trigger_upgrade();
                 }
                 else
                 {
@@ -356,15 +371,12 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_VERSION_QUERY:
             /* 版本号查询 (0xAC) */
             {
-                uint8_t version_data[2];
-                version_data[0] = (FIRMWARE_VERSION >> 8) & 0xFF;   /* 版本号高字节 */
-                version_data[1] = FIRMWARE_VERSION & 0xFF;          /* 版本号低字节 */
-                
 #if PROTOCOL_APP_DEBUG_VERBOSE
-                rt_kprintf("[App] Version query: V%d (0x%04X)\n", FIRMWARE_VERSION, FIRMWARE_VERSION);
+                rt_kprintf("[App] Version query: %s\n", FIRMWARE_VERSION);
 #endif
                 
-                protocol_send_response_ok(CMD_VERSION_QUERY, version_data, 2);
+                /* sizeof(FIRMWARE_VERSION) 会自动包含字符串末尾的 '\0' 字节 */
+                protocol_send_response_ok(CMD_VERSION_QUERY, (uint8_t *)FIRMWARE_VERSION, sizeof(FIRMWARE_VERSION));
             }
             break;
 

@@ -139,12 +139,12 @@ uint16_t iap_calculate_crc16(uint8_t *data, uint32_t len)
  */
 void iap_set_upgrade_flag(uint32_t flag)
 {
-    /* 先读取并保存固件信息，防止擦除后丢失 */
-    uint32_t saved_firmware_size = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE));
-    uint32_t saved_firmware_crc  = *((volatile uint32_t*)(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC));
+    /* 从IAP上下文获取固件信息（这些是新固件的正确值）*/
+    uint32_t firmware_size = g_iap_ctx.firmware_size;
+    uint16_t firmware_crc = (uint16_t)g_iap_ctx.firmware_crc;
     
-    rt_kprintf("[IAP] Saving firmware info before erase: size=%d, crc=0x%04X\n", 
-               saved_firmware_size, (uint16_t)saved_firmware_crc);
+    rt_kprintf("[IAP] Setting upgrade flag with firmware info: size=%d, crc=0x%04X\n", 
+               firmware_size, firmware_crc);
     
     /* 擦除配置页 */
     flash_erase_page(CONFIG_ADDR);
@@ -152,9 +152,9 @@ void iap_set_upgrade_flag(uint32_t flag)
     /* 写入升级标志 */
     flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_UPGRADE_FLAG, flag);
     
-    /* 恢复固件大小和CRC */
-    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE, saved_firmware_size);
-    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC, saved_firmware_crc);
+    /* 写入固件大小和CRC（使用新固件的信息）*/
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_SIZE, firmware_size);
+    flash_write_word(CONFIG_ADDR + CONFIG_OFFSET_FIRMWARE_CRC, firmware_crc);
     
 #if IAP_DEBUG_VERBOSE
     rt_kprintf("[IAP] Set upgrade flag: 0x%08X\n", flag);
@@ -295,9 +295,9 @@ int iap_verify_firmware(uint32_t size, uint16_t expected_crc)
 }
 
 /**
- * @brief 处理IAP请求命令 (0xAA)
+ * @brief 预处理IAP请求命令 (0xAA) - 仅验证参数和初始化上下文，不执行擦除
  */
-iap_result_t iap_handle_request(uint8_t *data, uint16_t len)
+iap_result_t iap_prepare_request(uint8_t *data, uint16_t len)
 {
     uint32_t firmware_size;
     uint16_t packet_size;
@@ -311,11 +311,11 @@ iap_result_t iap_handle_request(uint8_t *data, uint16_t len)
         return IAP_RESULT_INVALID;
     }
     
-    /* 解析参数（小端字节序） */
-    firmware_size = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-    packet_size = data[4] | (data[5] << 8);
-    total_packets = data[6] | (data[7] << 8);
-    firmware_crc = data[8] | (data[9] << 8);
+    /* 解析参数（大端字节序） */
+    firmware_size = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) | data[3];
+    packet_size = ((uint16_t)data[4] << 8) | data[5];
+    total_packets = ((uint16_t)data[6] << 8) | data[7];
+    firmware_crc = ((uint16_t)data[8] << 8) | data[9];
     
     /* 检查固件大小是否合法 */
     if (firmware_size == 0 || firmware_size > BACKUP_SIZE)
@@ -337,15 +337,45 @@ iap_result_t iap_handle_request(uint8_t *data, uint16_t len)
     g_iap_ctx.current_offset = 0;
     g_iap_ctx.last_packet_time = rt_tick_get();
     
+    return IAP_RESULT_ACCEPT;
+}
+
+/**
+ * @brief 开始擦除备用区域（在iap_prepare_request成功后调用）
+ */
+int iap_start_erase(void)
+{
     /* 擦除备用区域 */
     rt_kprintf("[IAP] Erasing backup region...\n");
     if (iap_erase_backup_region() != 0)
     {
         g_iap_ctx.state = IAP_STATE_ERROR;
-        return IAP_RESULT_ERASE_FAIL;
+        return -1;
     }
     
     rt_kprintf("[IAP] Ready to receive firmware\n");
+    
+    return 0;
+}
+
+/**
+ * @brief 处理IAP请求命令 (0xAA) - 完整处理（验证+擦除）
+ * @note 此函数会阻塞执行擦除，建议使用 iap_prepare_request + iap_start_erase 分离
+ */
+iap_result_t iap_handle_request(uint8_t *data, uint16_t len)
+{
+    iap_result_t result = iap_prepare_request(data, len);
+    
+    if (result != IAP_RESULT_ACCEPT)
+    {
+        return result;
+    }
+    
+    /* 执行擦除 */
+    if (iap_start_erase() != 0)
+    {
+        return IAP_RESULT_ERASE_FAIL;
+    }
     
     return IAP_RESULT_ACCEPT;
 }
@@ -373,8 +403,8 @@ iap_result_t iap_handle_packet(uint8_t *data, uint16_t len, uint16_t *next_seq)
         return IAP_RESULT_INVALID;
     }
     
-    /* 解析包序列号 */
-    packet_seq = data[0] | (data[1] << 8);
+    /* 解析包序列号（大端字节序） */
+    packet_seq = ((uint16_t)data[0] << 8) | data[1];
     packet_data = &data[2];
     packet_len = IAP_PACKET_SIZE;  /* 固定256字节 */
     

@@ -102,10 +102,26 @@ typedef struct {
 int iap_init(void);
 
 /**
- * @brief 处理IAP请求命令 (0xAA)
+ * @brief 预处理IAP请求命令 (0xAA) - 仅验证参数和初始化上下文，不执行擦除
  * @param data: 命令数据指针
  * @param len: 数据长度
  * @return IAP结果码
+ * @note 此函数用于先响应上位机，再执行擦除操作
+ */
+iap_result_t iap_prepare_request(uint8_t *data, uint16_t len);
+
+/**
+ * @brief 开始擦除备用区域（在iap_prepare_request成功后调用）
+ * @return 0: 成功, 其他: 失败
+ */
+int iap_start_erase(void);
+
+/**
+ * @brief 处理IAP请求命令 (0xAA) - 完整处理（验证+擦除）
+ * @param data: 命令数据指针
+ * @param len: 数据长度
+ * @return IAP结果码
+ * @note 此函数会阻塞执行擦除，建议使用 iap_prepare_request + iap_start_erase 分离
  */
 iap_result_t iap_handle_request(uint8_t *data, uint16_t len);
 

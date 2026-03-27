@@ -25,8 +25,8 @@
 /* 协议帧最小长度（帧头+长度高+长度低+命令码+校验+帧尾）*/
 #define PROTOCOL_MIN_FRAME_LEN  6
 
-/* 协议帧最大长度 */
-#define PROTOCOL_MAX_FRAME_LEN  256
+/* 协议帧最大长度 (IAP数据包需要264字节) */
+#define PROTOCOL_MAX_FRAME_LEN  300
 
 /* 有效数据区最大长度 */
 #define PROTOCOL_MAX_DATA_LEN   (PROTOCOL_MAX_FRAME_LEN - PROTOCOL_MIN_FRAME_LEN)
