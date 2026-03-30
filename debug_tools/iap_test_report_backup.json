@@ -1,0 +1,143 @@
+{
+  "test_info": {
+    "test_time": "2026-03-28T11:40:30.443740", 
+    "baudrate": 115200, 
+    "firmware": "gd32f303.bin", 
+    "test_count": 5, 
+    "firmware_size": 73961, 
+    "port": "/dev/ttyS4"
+  }, 
+  "results": [
+    {
+      "success": false, 
+      "version_before": null, 
+      "timestamp": "2026-03-28T11:34:51.613659", 
+      "test_num": 1, 
+      "version_after": null, 
+      "steps": [
+        {
+          "step": "Connect serial", 
+          "message": "Connected", 
+          "success": true
+        }, 
+        {
+          "step": "Query version before", 
+          "message": "Response too short or timeout", 
+          "success": false
+        }, 
+        {
+          "step": "Firmware transfer", 
+          "message": "IAP request failed: Response too short or timeout", 
+          "success": false
+        }
+      ], 
+      "error": "IAP request failed: Response too short or timeout"
+    }, 
+    {
+      "success": false, 
+      "version_before": null, 
+      "timestamp": "2026-03-28T11:35:59.988568", 
+      "test_num": 2, 
+      "version_after": null, 
+      "steps": [
+        {
+          "step": "Connect serial", 
+          "message": "Connected", 
+          "success": true
+        }, 
+        {
+          "step": "Query version before", 
+          "message": "Response too short or timeout", 
+          "success": false
+        }, 
+        {
+          "step": "Firmware transfer", 
+          "message": "IAP request failed: Response too short or timeout", 
+          "success": false
+        }
+      ], 
+      "error": "IAP request failed: Response too short or timeout"
+    }, 
+    {
+      "success": false, 
+      "version_before": null, 
+      "timestamp": "2026-03-28T11:37:08.348441", 
+      "test_num": 3, 
+      "version_after": null, 
+      "steps": [
+        {
+          "step": "Connect serial", 
+          "message": "Connected", 
+          "success": true
+        }, 
+        {
+          "step": "Query version before", 
+          "message": "Response too short or timeout", 
+          "success": false
+        }, 
+        {
+          "step": "Firmware transfer", 
+          "message": "IAP request failed: Response too short or timeout", 
+          "success": false
+        }
+      ], 
+      "error": "IAP request failed: Response too short or timeout"
+    }, 
+    {
+      "success": false, 
+      "version_before": null, 
+      "timestamp": "2026-03-28T11:38:16.711776", 
+      "test_num": 4, 
+      "version_after": null, 
+      "steps": [
+        {
+          "step": "Connect serial", 
+          "message": "Connected", 
+          "success": true
+        }, 
+        {
+          "step": "Query version before", 
+          "message": "Response too short or timeout", 
+          "success": false
+        }, 
+        {
+          "step": "Firmware transfer", 
+          "message": "IAP request failed: Response too short or timeout", 
+          "success": false
+        }
+      ], 
+      "error": "IAP request failed: Response too short or timeout"
+    }, 
+    {
+      "success": false, 
+      "version_before": null, 
+      "timestamp": "2026-03-28T11:39:25.082778", 
+      "test_num": 5, 
+      "version_after": null, 
+      "steps": [
+        {
+          "step": "Connect serial", 
+          "message": "Connected", 
+          "success": true
+        }, 
+        {
+          "step": "Query version before", 
+          "message": "Response too short or timeout", 
+          "success": false
+        }, 
+        {
+          "step": "Firmware transfer", 
+          "message": "IAP request failed: Response too short or timeout", 
+          "success": false
+        }
+      ], 
+      "error": "IAP request failed: Response too short or timeout"
+    }
+  ], 
+  "summary": {
+    "fail": 5, 
+    "total": 5, 
+    "success_rate": 0.0, 
+    "success": 0
+  }
+}

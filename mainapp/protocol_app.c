@@ -16,7 +16,7 @@
  * 例如: "0.0326.1.Bate1"
  * 修改此处更新固件版本号
  */
-#define FIRMWARE_VERSION            "1.0.2.Bate2"
+#define FIRMWARE_VERSION            "1.0.8.Bate8"
 
 /* 设备状态结构体 */
 typedef struct {
@@ -28,6 +28,24 @@ typedef struct {
 static device_state_t g_device_state = {0};
 
 extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
+
+/* IAP擦除线程 */
+static rt_thread_t g_iap_erase_thread = RT_NULL;
+
+/**
+ * @brief IAP擦除线程入口 - 异步执行擦除，擦除完毕后回复上位机 ACCEPT
+ */
+static void iap_erase_thread_entry(void *parameter)
+{
+    extern int iap_start_erase(void);
+    int ret = iap_start_erase();
+
+    /* 擦除完成后再发送响应，通知上位机可以开始传数据 */
+    iap_result_t result = (ret == 0) ? IAP_RESULT_ACCEPT : IAP_RESULT_ERASE_FAIL;
+    protocol_send_response_ok(CMD_IAP_REQUEST, (uint8_t*)&result, 1);
+
+    g_iap_erase_thread = RT_NULL;
+}
 
 /**
  * @brief 天窗状态变化回调函数
@@ -321,20 +339,31 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
         case CMD_IAP_REQUEST:
             /* IAP升级请求 (0xAA) */
             {
-                /* 使用分离函数：先验证参数并发送响应，再执行擦除 */
                 extern iap_result_t iap_prepare_request(uint8_t *data, uint16_t len);
-                extern int iap_start_erase(void);
                 
                 /* 1. 验证请求参数 */
                 iap_result_t result = iap_prepare_request(data, len);
                 
-                /* 2. 立即发送响应（避免擦除期间上位机超时）*/
-                protocol_send_response_ok(CMD_IAP_REQUEST, (uint8_t*)&result, 1);
-                
-                /* 3. 如果接受升级，执行擦除操作 */
-                if (result == IAP_RESULT_ACCEPT)
+                if (result != IAP_RESULT_ACCEPT)
                 {
-                    iap_start_erase();
+                    /* 参数校验失败，立即回复错误 */
+                    protocol_send_response_ok(CMD_IAP_REQUEST, (uint8_t*)&result, 1);
+                    break;
+                }
+
+                /* 2. 参数合法，异步启动擦除线程；擦除完毕后由线程发送 ACCEPT 响应 */
+                if (g_iap_erase_thread == RT_NULL)
+                {
+                    g_iap_erase_thread = rt_thread_create("iap_erase",
+                                                           iap_erase_thread_entry,
+                                                           RT_NULL,
+                                                           2048,
+                                                           RT_THREAD_PRIORITY_MAX / 2,
+                                                           10);
+                    if (g_iap_erase_thread != RT_NULL)
+                    {
+                        rt_thread_startup(g_iap_erase_thread);
+                    }
                 }
             }
             break;
@@ -357,13 +386,19 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
                     extern void iap_trigger_upgrade(void);
                     iap_trigger_upgrade();
                 }
+                else if (result == IAP_RESULT_ACCEPT)
+                {
+                    /* 正常：返回下一包序列号（大端字节序） */
+                    uint8_t response[2];
+                    response[0] = (next_seq >> 8) & 0xFF;
+                    response[1] = next_seq & 0xFF;
+                    protocol_send_response_ok(CMD_IAP_PACKET, response, 2);
+                }
                 else
                 {
-                    /* 返回下一包序列号（小端字节序） */
-                    uint8_t response[2];
-                    response[0] = next_seq & 0xFF;
-                    response[1] = (next_seq >> 8) & 0xFF;
-                    protocol_send_response_ok(CMD_IAP_PACKET, response, 2);
+                    /* 错误：写入失败/CRC失败/状态异常，通过0xAA命令返回错误码通知上位机终止 */
+                    uint8_t response[1] = {(uint8_t)result};
+                    protocol_send_response_ok(CMD_IAP_REQUEST, response, 1);
                 }
             }
             break;

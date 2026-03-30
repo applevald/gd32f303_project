@@ -2,200 +2,200 @@
   {
     "test_id": "TC_A0_001",
     "test_name": "标准心跳帧",
-    "passed": true,
+    "passed": false,
     "expected": "幻数=0x12",
-    "actual": "幻数=12",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:24:56"
   },
   {
     "test_id": "TC_A0_002",
     "test_name": "心跳帧幻数变化测试",
-    "passed": true,
+    "passed": false,
     "expected": "幻数=0x34",
-    "actual": "幻数=34",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:24:59"
   },
   {
     "test_id": "TC_A0_003",
     "test_name": "心跳帧边界值测试 - 幻数0x00",
-    "passed": true,
+    "passed": false,
     "expected": "幻数=0x00",
-    "actual": "幻数=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:02"
   },
   {
     "test_id": "TC_A0_004",
     "test_name": "心跳帧边界值测试 - 幻数0xFF",
-    "passed": true,
+    "passed": false,
     "expected": "幻数=0xFF",
-    "actual": "幻数=FF",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:05"
   },
   {
     "test_id": "TC_A1_001",
     "test_name": "纯风扇编号模式 - 风扇1",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=01, 结果=0x00",
-    "actual": "风扇ID=01, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:08"
   },
   {
     "test_id": "TC_A1_002",
     "test_name": "纯风扇编号模式 - 风扇2",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=02, 结果=0x00",
-    "actual": "风扇ID=02, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:11"
   },
   {
     "test_id": "TC_A1_003",
     "test_name": "纯风扇编号模式 - 风扇3(排风扇)",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=03, 结果=0x00",
-    "actual": "风扇ID=03, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:14"
   },
   {
     "test_id": "TC_A1_004",
     "test_name": "纯风扇编号模式 - 风扇7(热腔风扇)",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=07, 结果=0x00",
-    "actual": "风扇ID=07, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:17"
   },
   {
     "test_id": "TC_A1_005",
     "test_name": "纯风扇编号模式 - 风扇11(鼓风机)",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=0B, 结果=0x00",
-    "actual": "风扇ID=0B, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:20"
   },
   {
     "test_id": "TC_A1_006",
     "test_name": "组模式 - 电气散热风扇组",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=10, 结果=0x00",
-    "actual": "风扇ID=10, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:23"
   },
   {
     "test_id": "TC_A1_007",
     "test_name": "组模式 - 排风扇组",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=11, 结果=0x00",
-    "actual": "风扇ID=11, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:26"
   },
   {
     "test_id": "TC_A1_008",
     "test_name": "组模式 - 热腔风扇组",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=12, 结果=0x00",
-    "actual": "风扇ID=12, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:29"
   },
   {
     "test_id": "TC_A1_009",
     "test_name": "组模式 - 鼓风机组",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=13, 结果=0x00",
-    "actual": "风扇ID=13, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:32"
   },
   {
     "test_id": "TC_A1_010",
     "test_name": "边界值测试 - 转速0%",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=01, 结果=0x00",
-    "actual": "风扇ID=01, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:35"
   },
   {
     "test_id": "TC_A1_011",
     "test_name": "边界值测试 - 转速100%",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=01, 结果=0x00",
-    "actual": "风扇ID=01, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:38"
   },
   {
     "test_id": "TC_A1_012",
     "test_name": "风扇ID边界值测试 - 风扇14",
-    "passed": true,
+    "passed": false,
     "expected": "风扇ID=0E, 结果=0x00",
-    "actual": "风扇ID=0E, 结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:41"
   },
   {
     "test_id": "TC_A2_001",
     "test_name": "查询所有风扇转速",
-    "passed": true,
+    "passed": false,
     "expected": "风扇数据(N*2字节)",
-    "actual": "数据长度=28字节, 数据=0116 0200 0300 0400 0500 0600 0700 0800 0900 0A00...",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:44"
   },
   {
     "test_id": "TC_A3_001",
     "test_name": "查询所有风扇状态",
-    "passed": true,
+    "passed": false,
     "expected": "风扇状态(N字节)",
-    "actual": "数据长度=28字节, 状态=01 02 02 01 03 01 04 01 05 01 06 01 07 01 08 01 09 01 0A 01...",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:47"
   },
   {
     "test_id": "TC_A4_001",
     "test_name": "绿色常亮",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=00, 呼吸=00",
-    "actual": "灯状态=00, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:52"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:50"
   },
   {
     "test_id": "TC_A4_002",
     "test_name": "黄色常亮",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=01, 呼吸=00",
-    "actual": "灯状态=01, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:53"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:53"
   },
   {
     "test_id": "TC_A4_003",
     "test_name": "红色常亮",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=02, 呼吸=00",
-    "actual": "灯状态=02, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:53"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:56"
   },
   {
     "test_id": "TC_A4_004",
     "test_name": "绿色慢速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=00, 呼吸=01",
-    "actual": "灯状态=00, 呼吸=01",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:53"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:25:59"
   },
   {
     "test_id": "TC_A4_005",
@@ -204,115 +204,115 @@
     "expected": "灯状态=01, 呼吸=02",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 17:02:56"
+    "timestamp": "2026-03-28 12:26:02"
   },
   {
     "test_id": "TC_A4_006",
     "test_name": "红色快速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=02, 呼吸=03",
-    "actual": "灯状态=02, 呼吸=03",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:05"
   },
   {
     "test_id": "TC_A4_007",
     "test_name": "绿色快速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "灯状态=00, 呼吸=03",
-    "actual": "灯状态=00, 呼吸=03",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:08"
   },
   {
     "test_id": "TC_A5_001",
     "test_name": "全白色（进度0%）",
-    "passed": true,
+    "passed": false,
     "expected": "进度=00, 颜色=00, 呼吸=00",
-    "actual": "进度=00, 颜色=00, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:11"
   },
   {
     "test_id": "TC_A5_002",
     "test_name": "进度50% - 红色",
-    "passed": true,
+    "passed": false,
     "expected": "进度=32, 颜色=01, 呼吸=00",
-    "actual": "进度=32, 颜色=01, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:14"
   },
   {
     "test_id": "TC_A5_003",
     "test_name": "进度75% - 黄色",
-    "passed": true,
+    "passed": false,
     "expected": "进度=4B, 颜色=02, 呼吸=00",
-    "actual": "进度=4B, 颜色=02, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:17"
   },
   {
     "test_id": "TC_A5_004",
     "test_name": "进度100% - 绿色",
-    "passed": true,
+    "passed": false,
     "expected": "进度=64, 颜色=04, 呼吸=00",
-    "actual": "进度=64, 颜色=04, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:20"
   },
   {
     "test_id": "TC_A5_005",
     "test_name": "进度25% - 蓝色慢速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "进度=19, 颜色=03, 呼吸=01",
-    "actual": "进度=19, 颜色=03, 呼吸=01",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:23"
   },
   {
     "test_id": "TC_A5_006",
     "test_name": "进度10% - 自定义颜色",
-    "passed": true,
+    "passed": false,
     "expected": "进度=0A, 颜色=41, 呼吸=00",
-    "actual": "进度=0A, 颜色=41, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:26"
   },
   {
     "test_id": "TC_A5_007",
     "test_name": "进度99% - 蓝色中速呼吸",
-    "passed": true,
+    "passed": false,
     "expected": "进度=63, 颜色=03, 呼吸=02",
-    "actual": "进度=63, 颜色=03, 呼吸=02",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:29"
   },
   {
     "test_id": "TC_A5_008",
     "test_name": "边界值测试 - 进度1%",
-    "passed": true,
+    "passed": false,
     "expected": "进度=01, 颜色=00, 呼吸=00",
-    "actual": "进度=01, 颜色=00, 呼吸=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:32"
   },
   {
     "test_id": "TC_A6_001",
     "test_name": "查询所有状态",
-    "passed": true,
+    "passed": false,
     "expected": "32字节数据",
-    "actual": "数据长度=32字节, 前20字节=0B 20 00 00 01 02 02 01 03 01 04 01 05 01 06 01 07 01 08 01...",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:35"
   },
   {
     "test_id": "TC_A7_001",
     "test_name": "设置目标温度为50°C",
-    "passed": true,
+    "passed": false,
     "expected": "设定结果=0x00",
-    "actual": "设定结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:02:56"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:38"
   },
   {
     "test_id": "TC_A7_002",
@@ -321,43 +321,43 @@
     "expected": "设定结果=0x00",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 17:02:59"
+    "timestamp": "2026-03-28 12:26:41"
   },
   {
     "test_id": "TC_A7_003",
     "test_name": "设置目标温度为150°C",
     "passed": false,
     "expected": "设定结果=0x00",
-    "actual": "设定结果=02",
-    "error": "设定结果错误: 02",
-    "timestamp": "2026-03-19 17:03:00"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:44"
   },
   {
     "test_id": "TC_A7_004",
     "test_name": "边界值测试 - 温度0°C",
-    "passed": true,
+    "passed": false,
     "expected": "设定结果=0x00",
-    "actual": "设定结果=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:03:00"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:47"
   },
   {
     "test_id": "TC_A7_005",
     "test_name": "边界值测试 - 温度255°C",
     "passed": false,
     "expected": "设定结果=0x00",
-    "actual": "设定结果=02",
-    "error": "设定结果错误: 02",
-    "timestamp": "2026-03-19 17:03:00"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:50"
   },
   {
     "test_id": "TC_A8_001",
     "test_name": "关闭天窗",
-    "passed": true,
+    "passed": false,
     "expected": "天窗状态(1字节)",
-    "actual": "天窗状态=00",
-    "error": null,
-    "timestamp": "2026-03-19 17:03:00"
+    "actual": null,
+    "error": "超时: 3秒内无响应",
+    "timestamp": "2026-03-28 12:26:53"
   },
   {
     "test_id": "TC_A8_002",
@@ -366,7 +366,7 @@
     "expected": "天窗状态(1字节)",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 17:03:03"
+    "timestamp": "2026-03-28 12:26:56"
   },
   {
     "test_id": "TC_A8_003",
@@ -375,7 +375,7 @@
     "expected": "天窗状态(1字节)",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 17:03:06"
+    "timestamp": "2026-03-28 12:26:59"
   },
   {
     "test_id": "TC_A8_004",
@@ -384,7 +384,7 @@
     "expected": "错误应答: 原命令码=0xA8, 错误码=0x01",
     "actual": null,
     "error": "超时: 3秒内无响应",
-    "timestamp": "2026-03-19 17:03:09"
+    "timestamp": "2026-03-28 12:27:02"
   },
   {
     "test_id": "TC_CHECKSUM_001",
@@ -393,6 +393,6 @@
     "expected": "无响应（帧被丢弃）",
     "actual": "无响应",
     "error": null,
-    "timestamp": "2026-03-19 17:03:12"
+    "timestamp": "2026-03-28 12:27:05"
   }
 ]

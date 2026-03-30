@@ -12,8 +12,8 @@ import time
 import json
 from datetime import datetime
 
-# 目标主机配置
-HOST = "10.0.5.210"
+# 目标主机配置 - 使用备用测试主机
+HOST = "10.0.5.204"
 USERNAME = "root"
 PASSWORD = "123"
 REMOTE_PATH = "/root/"

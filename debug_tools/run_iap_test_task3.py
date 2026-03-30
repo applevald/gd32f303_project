@@ -10,8 +10,8 @@ import sys
 import os
 import time
 
-# 目标主机配置
-HOST = '10.0.5.210'
+# 目标主机配置（备用测试主机）
+HOST = '10.0.5.204'
 USERNAME = 'root'
 PASSWORD = '123'
 SERIAL_PORT = '/dev/ttyS4'

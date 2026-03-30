@@ -329,7 +329,7 @@ iap_result_t iap_prepare_request(uint8_t *data, uint16_t len)
     
     /* 初始化IAP上下文 */
     rt_memset(&g_iap_ctx, 0, sizeof(g_iap_ctx));
-    g_iap_ctx.state = IAP_STATE_RECEIVING;
+    g_iap_ctx.state = IAP_STATE_ERASING;   /* 先置为擦除中，等擦除完成后再改为RECEIVING */
     g_iap_ctx.firmware_size = firmware_size;
     g_iap_ctx.firmware_crc = firmware_crc;
     g_iap_ctx.total_packets = total_packets;
@@ -353,6 +353,8 @@ int iap_start_erase(void)
         return -1;
     }
     
+    /* 擦除完成，切换为接收状态 */
+    g_iap_ctx.state = IAP_STATE_RECEIVING;
     rt_kprintf("[IAP] Ready to receive firmware\n");
     
     return 0;
@@ -388,6 +390,17 @@ iap_result_t iap_handle_packet(uint8_t *data, uint16_t len, uint16_t *next_seq)
     uint16_t packet_seq;
     uint8_t *packet_data;
     uint16_t packet_len;
+    
+    /* 检查状态：若正在擦除则等待完成（最多30秒）*/
+    if (g_iap_ctx.state == IAP_STATE_ERASING)
+    {
+        uint32_t wait_ms = 0;
+        while (g_iap_ctx.state == IAP_STATE_ERASING && wait_ms < 30000)
+        {
+            rt_thread_mdelay(100);
+            wait_ms += 100;
+        }
+    }
     
     /* 检查状态 */
     if (g_iap_ctx.state != IAP_STATE_RECEIVING)

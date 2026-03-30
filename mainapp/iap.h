@@ -66,6 +66,7 @@
 /* IAP状态 */
 typedef enum {
     IAP_STATE_IDLE = 0,          /* 空闲状态 */
+    IAP_STATE_ERASING,           /* 擦除中 */
     IAP_STATE_RECEIVING,         /* 接收固件中 */
     IAP_STATE_VERIFYING,         /* 校验中 */
     IAP_STATE_READY_UPGRADE,     /* 准备升级 */

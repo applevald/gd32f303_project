@@ -7,6 +7,7 @@
 import paramiko
 import sys
 import time
+import os
 
 def execute_remote_test(host, username, password, remote_script_path, timeout=300):
     """在远程主机上执行测试脚本"""
@@ -82,10 +83,39 @@ def execute_remote_test(host, username, password, remote_script_path, timeout=30
         return False, None, None
 
 if __name__ == '__main__':
-    host = '10.0.5.210'
+    # 使用备用测试主机
+    host = '10.0.5.204'
     username = 'root'
     password = '123'
+    local_script = os.path.join(os.path.dirname(__file__), 'protocol_test.py')
     remote_script_path = 'protocol_test.py'
+
+    # 先上传测试脚本
+    print("=" * 60)
+    print("任务2: 协议完整性测试")
+    print("=" * 60)
+    print(f"目标主机: {host} (备用测试主机)")
+    
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(host, username=username, password=password, timeout=10)
+        
+        # 停止可能占用串口的服务
+        print("\n[准备] 停止占用串口的服务...")
+        ssh.exec_command('systemctl stop assistant_dev 2>/dev/null; killall AssistantDev 2>/dev/null')
+        time.sleep(2)
+        
+        # 上传脚本
+        print(f"[上传] {local_script} -> /tmp/{remote_script_path}")
+        sftp = ssh.open_sftp()
+        sftp.put(local_script, f'/tmp/{remote_script_path}')
+        sftp.close()
+        print("[OK] 上传完成")
+        ssh.close()
+    except Exception as e:
+        print(f"[FAIL] 上传失败: {e}")
+        sys.exit(1)
 
     success, output, errors = execute_remote_test(host, username, password, remote_script_path)
 
