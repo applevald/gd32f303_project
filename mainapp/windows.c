@@ -418,8 +418,13 @@ static void window_monitor_thread_entry(void *parameter)
                 g_stop_requested = RT_FALSE;
                 rt_kprintf("[Window] Stopped by request\n");
                 
-                /* 停止后上报当前状态 */
-                window_report_limit_change(check_limit_switch());
+                /* 停止后上报当前状态，并同步消抖基准，防止重复上报 */
+                {
+                    uint8_t cur = check_limit_switch();
+                    g_last_limit_state = cur;
+                    debounce_count = 0;
+                    window_report_limit_change(cur);
+                }
                 continue;
             }
             
@@ -430,7 +435,9 @@ static void window_monitor_thread_entry(void *parameter)
                 g_window_state = WINDOW_IDLE;
                 rt_kprintf("[Window] Closed successfully\n");
                 
-                /* 到达限位，上报状态 */
+                /* 到达限位，上报状态，同步消抖基准，防止重复上报 */
+                g_last_limit_state = current_limit;
+                debounce_count = 0;
                 window_report_limit_change(current_limit);
                 continue;
             }
@@ -441,7 +448,9 @@ static void window_monitor_thread_entry(void *parameter)
                 g_window_state = WINDOW_IDLE;
                 rt_kprintf("[Window] Opened successfully\n");
                 
-                /* 到达限位，上报状态 */
+                /* 到达限位，上报状态，同步消抖基准，防止重复上报 */
+                g_last_limit_state = current_limit;
+                debounce_count = 0;
                 window_report_limit_change(current_limit);
                 continue;
             }
@@ -453,8 +462,13 @@ static void window_monitor_thread_entry(void *parameter)
                 g_window_state = WINDOW_ERROR;
                 rt_kprintf("[Window] Driver fault detected!\n");
                 
-                /* 故障状态上报 */
-                window_report_limit_change(check_limit_switch());
+                /* 故障状态上报，同步消抖基准，防止重复上报 */
+                {
+                    uint8_t cur = check_limit_switch();
+                    g_last_limit_state = cur;
+                    debounce_count = 0;
+                    window_report_limit_change(cur);
+                }
                 continue;
             }
             
@@ -465,8 +479,13 @@ static void window_monitor_thread_entry(void *parameter)
                 g_window_state = WINDOW_ERROR;
                 rt_kprintf("[Window] Overcurrent detected!\n");
                 
-                /* 过流状态上报 */
-                window_report_limit_change(check_limit_switch());
+                /* 过流状态上报，同步消抖基准，防止重复上报 */
+                {
+                    uint8_t cur = check_limit_switch();
+                    g_last_limit_state = cur;
+                    debounce_count = 0;
+                    window_report_limit_change(cur);
+                }
                 continue;
             }
             
@@ -478,8 +497,13 @@ static void window_monitor_thread_entry(void *parameter)
                 g_window_error = WINDOW_ERR_TIMEOUT;
                 rt_kprintf("[Window] Timeout\n");
                 
-                /* 超时状态上报 */
-                window_report_limit_change(check_limit_switch());
+                /* 超时状态上报，同步消抖基准，防止重复上报 */
+                {
+                    uint8_t cur = check_limit_switch();
+                    g_last_limit_state = cur;
+                    debounce_count = 0;
+                    window_report_limit_change(cur);
+                }
                 continue;
             }
         }
