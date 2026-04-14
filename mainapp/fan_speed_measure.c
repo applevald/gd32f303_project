@@ -269,7 +269,10 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
     }
     
     rt_memset(data, 0, len);
-    
+
+    /* 按风扇索引查询各自稳定期 */
+    extern uint8_t fan_is_in_stable_period(uint8_t fan_idx);
+
     /* 填充风扇状态数据 - 按风扇ID顺序，每个风扇1字节状态 */
     for (int i = 0; i < FAN_COUNT; i++)
     {
@@ -280,7 +283,7 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
         uint8_t target_speed = fan_target_speed[i];  /* 目标速度百分比 */
         uint8_t status = 0x00;  /* 默认正常 */
         uint16_t target_rpm;
-        
+
         /* 根据风扇ID确定额定转速 - 使用整数运算 */
         if (fan_id <= 2)
         {
@@ -292,12 +295,17 @@ int get_fan_status(uint8_t *data, uint16_t len, const uint8_t *fan_target_speed)
             /* FAN3-FAN14: 5000 RPM */
             target_rpm = (50 * target_speed);  /* 5000 * target_speed / 100 */
         }
-        
+
         /* 判断风扇状态 - 使用整数比较 */
         if (target_speed > 0)
         {
-            /* 设置了速度 */
-            if (rpm == 0)
+            /* 设置了速度：先查询本风扇所属PWM组是否处于5秒稳定期 */
+            if (fan_is_in_stable_period((uint8_t)i))
+            {
+                /* 处于启动稳定期，不判断堵转/转速过慢，直接返回正常 */
+                status = 0x00;
+            }
+            else if (rpm == 0)
             {
                 /* 堵转：设置了速度但转速为0 */
                 status = 0x01;

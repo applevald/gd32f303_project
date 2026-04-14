@@ -6,9 +6,13 @@
 /* 热腔风扇硬件组ID (对应协议ID 7-10) */
 #define FAN_CHAMBER_GROUP_ID    2
 
+/* 热腔风扇停止加热后的延迟关闭时间（毫秒） */
+#define CHAMBER_FAN_COOLDOWN_MS     60000
+
 uint32_t goal_temp = 0; // 目标温度，超过该温度时关闭加热器
 static uint8_t g_heating_active = 0; // 加热是否激活（目标温度>0）
 static rt_thread_t heater_thread = RT_NULL;
+static rt_thread_t g_fan_cooldown_thread = RT_NULL; // 热腔风扇冷却延迟关闭线程
 
 uint32_t get_goal_temp(void)
 {
@@ -33,6 +37,29 @@ static void set_chamber_fans_full_speed(void)
     extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
     /* 热腔风扇对应硬件组ID = 2，直接传组ID，无需循环 */
     fan_set_speed(2, 100);
+}
+
+/**
+ * @brief 热腔风扇冷却延迟关闭线程
+ * @note  停止加热后延迟 CHAMBER_FAN_COOLDOWN_MS 毫秒再关闭热腔风扇
+ */
+static void fan_cooldown_thread_entry(void *parameter)
+{
+    extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
+    rt_thread_mdelay(CHAMBER_FAN_COOLDOWN_MS);
+
+    /* 延迟结束后检查加热是否已重新启动，若未重启则关闭热腔风扇 */
+    if (g_heating_active == 0)
+    {
+        fan_set_speed(2, 0);
+        rt_kprintf("[Heater] Chamber fan cooldown complete, fan stopped\n");
+    }
+    else
+    {
+        rt_kprintf("[Heater] Heating restarted during cooldown, fan kept running\n");
+    }
+
+    g_fan_cooldown_thread = RT_NULL;
 }
 
 void heater_set_state(uint8_t state)
@@ -75,12 +102,35 @@ uint8_t set_goal_temp(uint32_t temp)
     {
         /* 开始加热：设置加热激活标志，热腔风扇满速 */
         g_heating_active = 1;
+        /* 若冷却延迟线程正在运行（上次停止加热后还未关风扇），无需额外操作，风扇已在满速 */
         set_chamber_fans_full_speed();
     }
     else
     {
-        /* 停止加热：清除加热激活标志 */
+        /* 停止加热：立即关闭加热器，清除加热激活标志，启动延迟关闭热腔风扇线程 */
+        heater_set_state(0);
         g_heating_active = 0;
+
+        /* 若冷却线程尚未运行，则创建并启动 */
+        if (g_fan_cooldown_thread == RT_NULL)
+        {
+            g_fan_cooldown_thread = rt_thread_create("fan_cool",
+                                                      fan_cooldown_thread_entry,
+                                                      RT_NULL,
+                                                      512,
+                                                      RT_THREAD_PRIORITY_MAX / 2,
+                                                      10);
+            if (g_fan_cooldown_thread != RT_NULL)
+            {
+                rt_thread_startup(g_fan_cooldown_thread);
+                rt_kprintf("[Heater] Chamber fan cooldown started (1 min)\n");
+            }
+        }
+        else
+        {
+            /* 冷却线程已在运行，重置将在线程结束时自然完成 */
+            rt_kprintf("[Heater] Chamber fan cooldown already in progress\n");
+        }
     }
     
     return 0;
@@ -89,13 +139,12 @@ uint8_t set_goal_temp(uint32_t temp)
 void heater_entry(void *parameter)
 {
     static float current_temp = 0.0f;
-    goal_temp = 0; // 目标温度，超过该温度时关闭加热器
     while (1)
     {
         uint8_t state;
         temp_measure_get_temperature(&current_temp);
         if(goal_temp > 0){
-            if(current_temp >= goal_temp) // 温度超过30℃时开启加热器
+            if(current_temp >= goal_temp)
             {
                 state = 0;
             }
@@ -104,6 +153,11 @@ void heater_entry(void *parameter)
                 state = 1;
             }
             heater_set_state(state);
+        }
+        else
+        {
+            /* 目标温度为0，确保加热器关闭 */
+            heater_set_state(0);
         }
         rt_thread_mdelay(200); /* 每200毫秒检查一次温度 */
     }

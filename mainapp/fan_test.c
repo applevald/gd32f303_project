@@ -37,6 +37,18 @@
 /* 风扇目标速度数组（百分比 0-100），用于状态检测 */
 static uint8_t g_fan_target_speed[14] = {0};  /* 初始化为0 */
 
+/* 风扇启动稳定时间：5000ms */
+#define FAN_STABLE_DELAY_MS     5000
+
+/*
+ * 各PWM组的速度设置时间戳，分组对应：
+ *   组0 (FAN1组)  : 索引 0-1   (FAN1, FAN2)
+ *   组1 (FAN3组)  : 索引 2-5   (FAN3~FAN6)
+ *   组2 (FAN7组)  : 索引 6-9   (FAN7~FAN10)
+ *   组3 (FAN11组) : 索引 10-13 (FAN11~FAN14)
+ */
+static rt_tick_t g_fan_group_set_tick[4] = {0};
+
 /**
  * @brief  获取风扇目标速度数组
  * @retval 指向目标速度数组的指针
@@ -44,6 +56,32 @@ static uint8_t g_fan_target_speed[14] = {0};  /* 初始化为0 */
 const uint8_t* fan_get_target_speed_array(void)
 {
     return g_fan_target_speed;
+}
+
+/**
+ * @brief  判断指定风扇（按14路索引0-13）是否处于启动稳定期
+ * @param  fan_idx: 风扇索引(0-13)
+ * @retval 1: 处于稳定期, 0: 已稳定
+ */
+uint8_t fan_is_in_stable_period(uint8_t fan_idx)
+{
+    /* 根据索引确定所属PWM组 */
+    uint8_t group;
+    if (fan_idx <= 1)
+        group = 0;
+    else if (fan_idx <= 5)
+        group = 1;
+    else if (fan_idx <= 9)
+        group = 2;
+    else
+        group = 3;
+
+    if (g_fan_group_set_tick[group] == 0)
+    {
+        return 0;
+    }
+    rt_tick_t elapsed_ms = (rt_tick_get() - g_fan_group_set_tick[group]) * 1000 / RT_TICK_PER_SECOND;
+    return (elapsed_ms < FAN_STABLE_DELAY_MS) ? 1 : 0;
 }
 
 /* 风扇枚举 */
@@ -159,6 +197,7 @@ int fan_set_speed(fan_id_t fan, uint8_t percent)
             /* 更新目标速度：FAN1和FAN2共用同一个PWM */
             g_fan_target_speed[0] = percent;  /* FAN1 */
             g_fan_target_speed[1] = percent;  /* FAN2 */
+            g_fan_group_set_tick[0] = rt_tick_get();  /* 刷新FAN1组稳定期 */
             break;
         case FAN3:
             timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_0, pulse);
@@ -167,6 +206,7 @@ int fan_set_speed(fan_id_t fan, uint8_t percent)
             for (int i = 2; i <= 5; i++) {
                 g_fan_target_speed[i] = percent;
             }
+            g_fan_group_set_tick[1] = rt_tick_get();  /* 刷新FAN3组稳定期 */
             break;
         case FAN7:
             timer_channel_output_pulse_value_config(TIMER2, TIMER_CH_3, pulse);
@@ -175,6 +215,7 @@ int fan_set_speed(fan_id_t fan, uint8_t percent)
             for (int i = 6; i <= 9; i++) {
                 g_fan_target_speed[i] = percent;
             }
+            g_fan_group_set_tick[2] = rt_tick_get();  /* 刷新FAN7组稳定期 */
             break;
         case FAN11:
             timer_channel_output_pulse_value_config(TIMER0, TIMER_CH_1, pulse);
@@ -183,11 +224,13 @@ int fan_set_speed(fan_id_t fan, uint8_t percent)
             for (int i = 10; i <= 13; i++) {
                 g_fan_target_speed[i] = percent;
             }
+            g_fan_group_set_tick[3] = rt_tick_get();  /* 刷新FAN11组稳定期 */
             break;
         default:
             return 1;
             break;
     }
+
     return 0;
 }
 

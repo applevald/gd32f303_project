@@ -33,22 +33,25 @@
 #define ADC_RESOLUTION          4096            /* 12位ADC分辨率 */
 
 /* 调试开关 - 设为1启用详细调试输出，0关闭以提高性能 */
-#define TEMP_MEASURE_DEBUG_VERBOSE  0
+#define TEMP_MEASURE_DEBUG_VERBOSE  1
 
 /*
  * NTC传感器参数
  * 电路接法：VCC(3.3V) -- R_series -- ADC点 -- NTC -- GND
  * ADC测量的是NTC两端的电压
  * 
- * 根据实测校准：
- * 室温25℃时 ADC ≈ 3839 (V_adc ≈ 3.09V)
- * 反推Rs = 100kΩ * (3.3 - 3.09) / 3.09 ≈ 6.8kΩ
+ * 根据实测校准（室温25℃，ADC ≈ 3906）：
+ * V_adc = 3906 / 4096 * 3.3 ≈ 3.147V
+ * R_ntc(25℃) = 100kΩ（标称值）
+ * 反推 Rs = R_ntc * (Vcc - V_adc) / V_adc
+ *         = 100000 * (3.3 - 3.147) / 3.147 ≈ 4865Ω
+ * 实际硬件串联电阻为 4.7kΩ（标准值）
  * 
  * 计算：
  * V_adc = VCC * R_ntc / (R_ntc + R_s)
  * R_ntc = R_s * V_adc / (VCC - V_adc)
  */
-#define TEMP_SERIES_R           6800.0f         /* 串联电阻阻值(Ω) - 6.8kΩ (实测校准) */
+#define TEMP_SERIES_R           4700.0f         /* 串联电阻阻值(Ω) - 4.7kΩ (实测校准) */
 #define TEMP_SENSOR_R25         100000.0f       /* 25℃时的电阻值(Ω) NTC100K */
 #define TEMP_SENSOR_B           3950.0f         /* NTC B值 */
 
