@@ -28,6 +28,18 @@ typedef struct {
 
 static device_state_t g_device_state = {0};
 
+/* 机型配置定义 */
+#define MODEL_TYPE_T450D    0   /* T450D机型 */
+#define MODEL_TYPE_T700     1   /* T700机型 */
+
+/* 机型配置 - 默认为T450D */
+static uint8_t g_model_type = MODEL_TYPE_T450D;
+
+/* 配置结果码定义 */
+#define CONFIG_RESULT_OK            0   /* 配置成功 */
+#define CONFIG_RESULT_REJECT        1   /* 拒绝配置 */
+#define CONFIG_RESULT_OTHER         2   /* 其他错误 */
+
 extern int fan_set_speed(uint8_t fan_id, uint8_t speed);
 
 /* IAP擦除线程 */
@@ -416,6 +428,59 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             }
             break;
 
+        case CMD_CONFIG_REQUEST:
+            /* 配置请求 (0xAD) */
+            {
+                
+                uint8_t config_type = data[0];      /* 配置类型 */
+                uint8_t config_content = data[1];   /* 配置内容 */
+                uint8_t result = CONFIG_RESULT_OK;
+                
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                rt_kprintf("[App] Config request: type=%d, content=%d\n", config_type, config_content);
+#endif
+                
+                if (config_type == 0)
+                {
+                    /* 配置机型 */
+                    if (config_content == MODEL_TYPE_T450D || config_content == MODEL_TYPE_T700)
+                    {
+                        g_model_type = config_content;
+                        result = CONFIG_RESULT_OK;
+                        
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                        rt_kprintf("[App] Model configured: %s\n", 
+                                  config_content == MODEL_TYPE_T450D ? "T450D" : "T700");
+#endif
+                        
+                        /* 根据机型配置灯珠和风扇 */
+                        /* T450D: 50个灯珠, T700: 72个灯珠 */
+                        extern void ws2812_bar_set_model(uint8_t model_type);
+                        ws2812_bar_set_model(g_model_type);
+                    }
+                    else
+                    {
+                        /* 未知机型 */
+                        result = CONFIG_RESULT_REJECT;
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                        rt_kprintf("[App] Unknown model type: %d\n", config_content);
+#endif
+                    }
+                }
+                else
+                {
+                    /* 未知配置类型 */
+                    result = CONFIG_RESULT_OTHER;
+#if PROTOCOL_APP_DEBUG_VERBOSE
+                    rt_kprintf("[App] Unknown config type: %d\n", config_type);
+#endif
+                }
+                
+                /* 发送配置结果 */
+                protocol_send_response_ok(CMD_CONFIG_REQUEST, &result, 1);
+            }
+            break;
+
         case CMD_RESPONSE_ERROR:
             /* 收到主板的应答（失败）*/
 #if PROTOCOL_APP_DEBUG_VERBOSE
@@ -439,6 +504,15 @@ static void protocol_command_handler(uint8_t cmd, uint8_t *data, uint16_t len)
             }
             break;
     }
+}
+
+/**
+ * @brief 获取当前机型配置
+ * @return 0-T450D, 1-T700
+ */
+uint8_t protocol_get_model_type(void)
+{
+    return g_model_type;
 }
 
 /**
@@ -514,3 +588,32 @@ static void cmd_light_bar(int argc, char **argv)
     }
 }
 MSH_CMD_EXPORT_ALIAS(cmd_light_bar, proto_lightbar, Send light bar control command);
+
+/**
+ * @brief Shell命令：配置机型
+ * @note  测试CMD_CONFIG_REQUEST (0xAD)
+ */
+static void cmd_config_model(int argc, char **argv)
+{
+    if (argc >= 2)
+    {
+        uint8_t model_type = (uint8_t)atoi(argv[1]);  /* 0-T450D, 1-T700 */
+        
+        uint8_t data[2];
+        data[0] = 0;           /* 配置类型：0-配置机型 */
+        data[1] = model_type;  /* 配置内容：0-T450D, 1-T700 */
+        
+        protocol_send_frame(CMD_CONFIG_REQUEST, data, 2);
+        rt_kprintf("Config request sent: model=%s\n", 
+                  model_type == 0 ? "T450D (50 LEDs)" : "T700 (72 LEDs)");
+    }
+    else
+    {
+        rt_kprintf("Usage: proto_config <model_type>\n");
+        rt_kprintf("Example: proto_config 0    (Configure as T450D - 50 LEDs)\n");
+        rt_kprintf("         proto_config 1    (Configure as T700 - 72 LEDs)\n");
+        rt_kprintf("\nCurrent model: %s\n", 
+                  protocol_get_model_type() == 0 ? "T450D" : "T700");
+    }
+}
+MSH_CMD_EXPORT_ALIAS(cmd_config_model, proto_config, Send config request command);

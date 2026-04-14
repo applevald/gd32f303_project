@@ -28,11 +28,16 @@
 #define WS2812_GPIO_CLK         RCU_GPIOC
 
 /* LED配置 */
-#define WS2812_LED_NUM          72      /* LED数量 */
+#define WS2812_LED_NUM          72      /* LED最大数量 */
+#define WS2812_LED_NUM_T450D    50      /* T450D型号LED数量 */
+#define WS2812_LED_NUM_T700     72      /* T700型号LED数量 */
 
 /* GPIO操作宏 */
 #define WS2812_PIN_HIGH()       GPIO_BOP(WS2812_GPIO_PORT) = WS2812_GPIO_PIN
 #define WS2812_PIN_LOW()        GPIO_BC(WS2812_GPIO_PORT) = WS2812_GPIO_PIN
+
+/* 当前使用的LED数量（根据机型配置）*/
+static rt_uint8_t ws2812_active_led_num = WS2812_LED_NUM_T450D;
 
 /* 颜色缓冲区 (GRB格式) */
 static rt_uint8_t ws2812_color_buffer[WS2812_LED_NUM * 3];
@@ -213,7 +218,7 @@ rt_err_t ws2812_bar_init(void)
  */
 void ws2812_bar_set_color(rt_uint8_t index, rt_uint8_t red, rt_uint8_t green, rt_uint8_t blue)
 {
-    if (index >= WS2812_LED_NUM)
+    if (index >= ws2812_active_led_num)
     {
         return;
     }
@@ -234,7 +239,7 @@ void ws2812_bar_set_all(rt_uint8_t red, rt_uint8_t green, rt_uint8_t blue)
 {
     rt_uint8_t i;
     
-    for (i = 0; i < WS2812_LED_NUM; i++)
+    for (i = 0; i < ws2812_active_led_num; i++)
     {
         ws2812_bar_set_color(i, red, green, blue);
     }
@@ -309,7 +314,7 @@ static int ws2812_bar_test(int argc, char **argv)
     ws2812_bar_update();
     
     rt_kprintf("WS2812 Bar: Set all %d LEDs to RGB(%d, %d, %d)\n", 
-               WS2812_LED_NUM, r, g, b);
+               ws2812_active_led_num, r, g, b);
     
     return 0;
 }
@@ -336,10 +341,10 @@ void ws2812_bar_set_progress(rt_uint8_t progress, rt_uint8_t red, rt_uint8_t gre
     }
     
     /* 计算需要点亮的LED数量 */
-    leds_to_light = (progress * WS2812_LED_NUM) / 100;
+    leds_to_light = (progress * ws2812_active_led_num) / 100;
     
     /* 清空所有LED */
-    for (i = 0; i < WS2812_LED_NUM; i++)
+    for (i = 0; i < ws2812_active_led_num; i++)
     {
         ws2812_bar_set_color(i, 0, 0, 0);
     }
@@ -347,7 +352,7 @@ void ws2812_bar_set_progress(rt_uint8_t progress, rt_uint8_t red, rt_uint8_t gre
     /* 点亮对应数量的LED（从最后一个灯开始往前点亮）*/
     for (i = 0; i < leds_to_light; i++)
     {
-        reversed_index = WS2812_LED_NUM - 1 - i;
+        reversed_index = ws2812_active_led_num - 1 - i;
         ws2812_bar_set_color(reversed_index, red, green, blue);
     }
 }
@@ -550,19 +555,19 @@ rt_err_t ws2812_bar_protocol_control(rt_uint8_t progress, rt_uint8_t color_param
         /* 显示进度条：背景色 + 前景色 */
         rt_uint8_t i;
         rt_uint8_t reversed_index;
-        rt_uint8_t leds_to_light = (progress * WS2812_LED_NUM) / 100;
+        rt_uint8_t leds_to_light = (progress * ws2812_active_led_num) / 100;
         
         /* 点亮前景色LED - 从最后一个灯开始往前点亮（顺序反转）*/
         for (i = 0; i < leds_to_light; i++)
         {
-            reversed_index = WS2812_LED_NUM - 1 - i;
+            reversed_index = ws2812_active_led_num - 1 - i;
             ws2812_bar_set_color(reversed_index, fg_r, fg_g, fg_b);
         }
         
         /* 点亮背景色LED - 从前面开始（顺序反转）*/
-        for (i = leds_to_light; i < WS2812_LED_NUM; i++)
+        for (i = leds_to_light; i < ws2812_active_led_num; i++)
         {
-            reversed_index = WS2812_LED_NUM - 1 - i;
+            reversed_index = ws2812_active_led_num - 1 - i;
             ws2812_bar_set_color(reversed_index, bg_r, bg_g, bg_b);
         }
         
@@ -611,7 +616,7 @@ static int ws2812_bar_progress(int argc, char **argv)
     ws2812_bar_update();
     
     rt_kprintf("WS2812 Bar: Set progress to %d%% (%d LEDs lit)\n", 
-               progress, (progress * WS2812_LED_NUM) / 100);
+               progress, (progress * ws2812_active_led_num) / 100);
     
     return 0;
 }
@@ -623,3 +628,31 @@ MSH_CMD_EXPORT(ws2812_bar_progress, Set LED bar progress: ws2812_bar_progress <0
 MSH_CMD_EXPORT(ws2812_bar_init, Initialize WS2812 LED bar on PC12);
 MSH_CMD_EXPORT(ws2812_bar_clear, Turn off all LEDs);
 #endif
+
+/**
+ * @brief  设置机型配置
+ * @param  model_type: 机型类型
+ *         0 - T450D (50个LED)
+ *         1 - T700 (72个LED)
+ * @retval None
+ * @note   根据机型设置实际使用的LED数量
+ */
+void ws2812_bar_set_model(uint8_t model_type)
+{
+    if (model_type == 0)
+    {
+        /* T450D */
+        ws2812_active_led_num = WS2812_LED_NUM_T450D;
+        rt_kprintf("[LightBar] Model set to T450D (%d LEDs)\n", ws2812_active_led_num);
+    }
+    else if (model_type == 1)
+    {
+        /* T700 */
+        ws2812_active_led_num = WS2812_LED_NUM_T700;
+        rt_kprintf("[LightBar] Model set to T700 (%d LEDs)\n", ws2812_active_led_num);
+    }
+    else
+    {
+        rt_kprintf("[LightBar] Unknown model type %d, keeping default\n", model_type);
+    }
+}
