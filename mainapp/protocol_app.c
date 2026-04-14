@@ -17,7 +17,7 @@
  * 修改此处更新固件版本号
  * 版本号用 0.1.0409 格式 第一位是大版本号（硬件大变动，向前不兼容，自增1），第二位（功能较大变更或跨年自增1），第三是发布日期，测试版尾巴加Bate0-99 ，官方正式版不能有Bate信息
  */
-#define FIRMWARE_VERSION            "0.1.0409.Bate1"
+#define FIRMWARE_VERSION            "0.1.0414.Bate1"
 
 /* 设备状态结构体 */
 typedef struct {
