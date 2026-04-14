@@ -675,9 +675,9 @@ uint8_t window_get_protocol_status(void)
             }
             else
             {
-                /* 其他错误，返回未知状态 + 限位开关状态 */
-                uint8_t close_limit = gpio_input_bit_get(LIMIT_SWITCH_1_PORT, LIMIT_SWITCH_1_PIN);
-                uint8_t open_limit = gpio_input_bit_get(LIMIT_SWITCH_2_PORT, LIMIT_SWITCH_2_PIN);
+                /* 其他错误，返回未知状态 + 限位开关状态 *///高电平才是按下，所以要取反处理
+                uint8_t close_limit = !gpio_input_bit_get(LIMIT_SWITCH_1_PORT, LIMIT_SWITCH_1_PIN);
+                uint8_t open_limit = !gpio_input_bit_get(LIMIT_SWITCH_2_PORT, LIMIT_SWITCH_2_PIN);
                 
                 /* 高4位为1 (0x10 = 16)，低2位表示限位状态 */
                 /* bit0: 关限位 (1=未触发, 0=触发) */
@@ -698,9 +698,9 @@ uint8_t window_get_protocol_status(void)
             }
             else
             {
-                /* 未知位置，返回状态5 + 限位开关状态 */
-                uint8_t close_limit = gpio_input_bit_get(LIMIT_SWITCH_1_PORT, LIMIT_SWITCH_1_PIN);
-                uint8_t open_limit = gpio_input_bit_get(LIMIT_SWITCH_2_PORT, LIMIT_SWITCH_2_PIN);
+                /* 未知位置，返回状态5 + 限位开关状态 *///高电平才是按下，所以要取反处理
+                uint8_t close_limit = !gpio_input_bit_get(LIMIT_SWITCH_1_PORT, LIMIT_SWITCH_1_PIN);
+                uint8_t open_limit = !gpio_input_bit_get(LIMIT_SWITCH_2_PORT, LIMIT_SWITCH_2_PIN);
                 
                 /* 高4位为1 (0x10 = 16)，低2位表示限位状态 */
                 return (0x10 | (open_limit << 1) | close_limit);
