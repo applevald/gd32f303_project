@@ -76,6 +76,16 @@ window_error_t window_get_error(void);
 uint8_t window_get_protocol_status(void);
 
 /**
+ * @brief  获取天窗当前物理限位组合状态
+ * @return 0x10-0x13:
+ *         0x10: 两个限位都触发 (异常)
+ *         0x11: 仅关限位触发
+ *         0x12: 仅开限位触发
+ *         0x13: 两个限位都未触发 (中间位置)
+ */
+uint8_t window_get_limit_combined_status(void);
+
+/**
  * @brief  注册状态变化回调函数
  * @param  callback: 回调函数指针
  */

@@ -106,8 +106,8 @@ void window_register_status_callback(window_status_callback_t callback)
  */
 static void window_report_limit_change(uint8_t limit_state)
 {
-    /* 获取完整的协议状态码 */
-    uint8_t protocol_status = window_get_protocol_status();
+    /* 获取物理限位组合状态码 (0x10-0x13) */
+    uint8_t protocol_status = window_get_limit_combined_status();
     
     rt_kprintf("[Window] Limit switch changed, reporting status: 0x%02X\n", protocol_status);
     
@@ -706,6 +706,25 @@ uint8_t window_get_protocol_status(void)
                 return (0x10 | (open_limit << 1) | close_limit);
             }
     }
+}
+
+/**
+ * @brief  获取天窗当前物理限位组合状态
+ * @return 0x10-0x13:
+ *         0x10: 两个限位都触发 (异常)
+ *         0x11: 仅关限位触发
+ *         0x12: 仅开限位触发
+ *         0x13: 两个限位都未触发 (中间位置)
+ */
+uint8_t window_get_limit_combined_status(void)
+{
+    /* 高电平表示触发，逻辑要求：0表示触发，1表示未触发 */
+    /* bit0: 关限位 (0=触发, 1=未触发) */
+    /* bit1: 开限位 (0=触发, 1=未触发) */
+    uint8_t close_limit = !gpio_input_bit_get(LIMIT_SWITCH_1_PORT, LIMIT_SWITCH_1_PIN);
+    uint8_t open_limit = !gpio_input_bit_get(LIMIT_SWITCH_2_PORT, LIMIT_SWITCH_2_PIN);
+    
+    return (0x10 | (open_limit << 1) | close_limit);
 }
 
 /* ==================== Shell命令 ==================== */
